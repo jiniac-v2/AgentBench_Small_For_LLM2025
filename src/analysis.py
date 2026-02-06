@@ -153,30 +153,11 @@ class TaskHandler:
 
     @staticmethod
     def get_handler(task_name) -> "TaskHandler":
-        handlers = [DCG(), HH(), OS(), DB(), KG(), LTP(), WB(), WS()]
+        handlers = [HH(), DB()]
         for handler in handlers:
             if handler.match(task_name):
                 return handler
         raise ValueError(f"Unknown task: {task_name}")
-
-
-class DCG(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return (
-            "card" in task_name
-            or task_name.startswith("cg")
-            or task_name.startswith("dcg")
-        )
-
-    def get_main_metric(self, overall_result):
-        try:
-            return overall_result["custom"]["score"]
-        except:
-            return {"win_rate(legacy)": overall_result["custom"]["win_rate"]}
-
-    def get_order_priority(self):
-        return 4
 
 
 class HH(TaskHandler):
@@ -191,18 +172,6 @@ class HH(TaskHandler):
         return 6
 
 
-class OS(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return task_name.startswith("os") or task_name.startswith("operating")
-
-    def get_main_metric(self, overall_result):
-        return overall_result["custom"]["overall"]["acc"]
-
-    def get_order_priority(self):
-        return 1
-
-
 class DB(TaskHandler):
     def match(self, task_name) -> bool:
         task_name = task_name.lower()
@@ -213,54 +182,6 @@ class DB(TaskHandler):
 
     def get_order_priority(self):
         return 2
-
-
-class KG(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return task_name.startswith("kg") or task_name.startswith("knowledge")
-
-    def get_main_metric(self, overall_result):
-        return overall_result["custom"]["main"]
-
-    def get_order_priority(self):
-        return 3
-
-
-class LTP(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return task_name.startswith("ltp") or task_name.startswith("literal")
-
-    def get_main_metric(self, overall_result):
-        return overall_result["custom"]["main"]
-
-    def get_order_priority(self):
-        return 5
-
-
-class WB(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return task_name.startswith("m2w") or task_name.startswith("mind2web")
-
-    def get_main_metric(self, overall_result):
-        return overall_result["custom"]["step_sr"] / 100
-
-    def get_order_priority(self):
-        return 8
-
-
-class WS(TaskHandler):
-    def match(self, task_name) -> bool:
-        task_name = task_name.lower()
-        return task_name.startswith("ws") or task_name.startswith("webshop")
-
-    def get_main_metric(self, overall_result):
-        return overall_result["custom"]["reward"]
-
-    def get_order_priority(self):
-        return 7
 
 
 def parse_timestamp(time_str: str) -> float:
