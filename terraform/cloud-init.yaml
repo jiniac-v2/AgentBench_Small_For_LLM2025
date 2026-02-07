@@ -1,0 +1,8 @@
+#cloud-config
+
+write_files:
+  - path: /etc/environment
+    content: |
+      VLLM_MODEL=${vllm_model}
+      HUGGING_FACE_HUB_TOKEN=${hf_token}
+    append: true

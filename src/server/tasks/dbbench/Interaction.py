@@ -11,7 +11,7 @@ class Container:
     port = 13000
     password = "password"
 
-    def __init__(self, image: str = "mysql"):
+    def __init__(self, image: str = "mysql:9.5.0"):
         self.deleted = False
         self.image = image
         self.client = docker.from_env()
