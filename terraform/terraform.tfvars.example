@@ -1,4 +1,4 @@
-project_id   = "llm-le-2023summer"
+project_id   = ""
 region       = "me-central2"
 zone         = "me-central2-c"
 machine_type = "g2-standard-8"
