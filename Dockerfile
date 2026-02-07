@@ -1,8 +1,11 @@
 FROM python:3.9-slim
 
-# System dependencies for ALFWorld (OpenCV requires libgl1) and envsubst (gettext-base)
+# System dependencies:
+#   libgl1, libglib2.0-0: ALFWorld (OpenCV)
+#   gettext-base: envsubst for config templating
+#   curl: vLLM inference test
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gettext-base && \
+    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gettext-base curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -13,4 +16,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["src.assigner", "configs/assignments/default.yaml"]
