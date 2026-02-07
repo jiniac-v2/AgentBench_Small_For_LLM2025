@@ -3,4 +3,4 @@ definition:
 
 start:
   dbbench-std: 5
-  os-std: 5
+  alfworld-std: 5
