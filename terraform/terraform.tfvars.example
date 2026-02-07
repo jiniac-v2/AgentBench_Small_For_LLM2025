@@ -1,9 +1,7 @@
-project_id   = "your-gcp-project-id"
-region       = "asia-northeast1"
-zone         = "asia-northeast1-a"
-machine_type = "n1-standard-8"
-gpu_type     = "nvidia-tesla-t4"
-gpu_count    = 1
+project_id   = "llm-le-2023summer"
+region       = "me-central2"
+zone         = "me-central2-c"
+machine_type = "g2-standard-8"
 disk_size_gb = 200
-vllm_model   = "meta-llama/Llama-3.1-8B-Instruct"
+vllm_model   = "Qwen/Qwen2.5-7B-Instruct"
 hf_token     = ""

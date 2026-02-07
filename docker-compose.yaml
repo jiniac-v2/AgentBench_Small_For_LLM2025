@@ -1,7 +1,6 @@
 services:
   vllm:
     image: vllm/vllm-openai:v0.13.0
-    runtime: nvidia
     ipc: host
     ports:
       - "8000:8000"
@@ -10,7 +9,7 @@ services:
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
     command: >
-      --model ${VLLM_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      --model ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
       --max-model-len ${VLLM_MAX_MODEL_LEN:-8192}
       --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.95}
     deploy:
@@ -37,5 +36,5 @@ services:
       vllm:
         condition: service_healthy
     environment:
-      - VLLM_MODEL=${VLLM_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      - VLLM_MODEL=${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
     network_mode: host

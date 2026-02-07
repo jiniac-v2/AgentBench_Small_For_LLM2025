@@ -21,15 +21,15 @@ resource "google_compute_instance" "agentbench" {
 
   boot_disk {
     initialize_params {
-      image = "projects/cos-cloud/global/images/family/cos-stable"
+      image = "projects/deeplearning-platform-release/global/images/family/common-cu128-ubuntu-2204-nvidia-570"
       size  = var.disk_size_gb
-      type  = "pd-ssd"
+      type  = "pd-balanced"
     }
   }
 
   guest_accelerator {
-    type  = var.gpu_type
-    count = var.gpu_count
+    type  = "nvidia-l4"
+    count = 1
   }
 
   scheduling {
@@ -43,11 +43,9 @@ resource "google_compute_instance" "agentbench" {
   }
 
   metadata = {
-    "cos-metrics-enabled" = "true"
-    "user-data" = templatefile("${path.module}/cloud-init.yaml", {
-      vllm_model = var.vllm_model
-      hf_token   = var.hf_token
-    })
+    "install-nvidia-driver" = "True"
+    "vllm-model"            = var.vllm_model
+    "hf-token"              = var.hf_token
   }
 
   metadata_startup_script = file("${path.module}/startup.sh")

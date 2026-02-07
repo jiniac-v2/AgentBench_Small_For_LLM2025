@@ -1,40 +1,29 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
+  default     = "llm-le-2023summer"
 }
 
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "asia-northeast1"
+  default     = "me-central2"
 }
 
 variable "zone" {
   description = "GCP zone"
   type        = string
-  default     = "asia-northeast1-a"
+  default     = "me-central2-c"
 }
 
 variable "machine_type" {
-  description = "GCE instance machine type (must support GPU)"
+  description = "GCE instance machine type (g2-standard-8: 8 vCPUs, 32GB RAM, NVIDIA L4)"
   type        = string
-  default     = "n1-standard-8"
-}
-
-variable "gpu_type" {
-  description = "GPU accelerator type"
-  type        = string
-  default     = "nvidia-tesla-t4"
-}
-
-variable "gpu_count" {
-  description = "Number of GPUs"
-  type        = number
-  default     = 1
+  default     = "g2-standard-8"
 }
 
 variable "disk_size_gb" {
-  description = "Boot disk size in GB"
+  description = "Boot disk size in GB (pd-balanced)"
   type        = number
   default     = 200
 }
@@ -42,7 +31,7 @@ variable "disk_size_gb" {
 variable "vllm_model" {
   description = "HuggingFace model ID or path for vLLM"
   type        = string
-  default     = "meta-llama/Llama-3.1-8B-Instruct"
+  default     = "Qwen/Qwen2.5-7B-Instruct"
 }
 
 variable "hf_token" {
