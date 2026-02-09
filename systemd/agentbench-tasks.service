@@ -1,0 +1,41 @@
+[Unit]
+Description=AgentBench Controller and Task Workers
+After=agentbench-vllm.service
+Requires=agentbench-vllm.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/agentbench
+EnvironmentFile=/opt/agentbench/.env
+
+# Wait for vLLM to be healthy before starting
+ExecStartPre=/bin/bash -c '\
+  echo "Waiting for vLLM health..."; \
+  for i in $(seq 1 60); do \
+    if curl -sf http://localhost:8000/health > /dev/null 2>&1; then \
+      echo "vLLM is healthy"; exit 0; \
+    fi; \
+    sleep 5; \
+  done; \
+  echo "ERROR: vLLM health check failed"; exit 1'
+
+# vLLM inference test
+ExecStartPre=/bin/bash -c '\
+  echo "Testing vLLM inference..."; \
+  RESP=$(curl -s -w "%%{http_code}" -o /tmp/vllm_test.json \
+    -X POST http://localhost:8000/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d "{\"model\": \"${VLLM_MODEL}\", \"messages\": [{\"role\": \"user\", \"content\": \"Say hello\"}], \"max_tokens\": 16}"); \
+  if [ "$RESP" = "200" ]; then \
+    echo "vLLM inference test PASSED"; cat /tmp/vllm_test.json; echo; exit 0; \
+  else \
+    echo "ERROR: vLLM inference test FAILED (HTTP $RESP)"; cat /tmp/vllm_test.json 2>/dev/null; exit 1; \
+  fi'
+
+# start_task.py -a starts: Controller (port 5000) → DBBench workers → ALFWorld workers
+ExecStart=/usr/bin/python3 -m src.start_task -a
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

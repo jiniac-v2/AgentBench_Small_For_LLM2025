@@ -1,3 +1,8 @@
+# vLLM inference server (local use)
+# Usage:
+#   cp .env.example .env && vi .env
+#   docker compose up -d
+#   bash scripts/run.sh
 services:
   vllm:
     image: vllm/vllm-openai:v0.13.0
@@ -25,16 +30,3 @@ services:
       timeout: 10s
       retries: 10
       start_period: 120s
-
-  agentbench:
-    build: .
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/app/data
-      - ./outputs:/app/outputs
-    depends_on:
-      vllm:
-        condition: service_healthy
-    environment:
-      - VLLM_MODEL=${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
-    network_mode: host

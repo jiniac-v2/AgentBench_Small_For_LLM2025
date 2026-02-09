@@ -14,6 +14,24 @@ provider "google" {
   zone    = var.zone
 }
 
+# ----------------------------------------------------------
+# Service Account (VM identity)
+# ----------------------------------------------------------
+resource "google_service_account" "agentbench" {
+  account_id   = "agentbench-vm"
+  display_name = "AgentBench VM Service Account"
+}
+
+# Secret Manager access (for GitHub PAT, optional)
+resource "google_project_iam_member" "secret_access" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.agentbench.email}"
+}
+
+# ----------------------------------------------------------
+# VM Instance
+# ----------------------------------------------------------
 resource "google_compute_instance" "agentbench" {
   name         = "agentbench-eval"
   machine_type = var.machine_type
@@ -53,10 +71,14 @@ resource "google_compute_instance" "agentbench" {
   tags = ["agentbench", "allow-ssh"]
 
   service_account {
+    email  = google_service_account.agentbench.email
     scopes = ["cloud-platform"]
   }
 }
 
+# ----------------------------------------------------------
+# Firewall
+# ----------------------------------------------------------
 resource "google_compute_firewall" "allow_ssh" {
   name    = "agentbench-allow-ssh"
   network = "default"
@@ -70,6 +92,9 @@ resource "google_compute_firewall" "allow_ssh" {
   target_tags   = ["allow-ssh"]
 }
 
+# ----------------------------------------------------------
+# Outputs
+# ----------------------------------------------------------
 output "instance_ip" {
   description = "External IP of the AgentBench VM"
   value       = google_compute_instance.agentbench.network_interface[0].access_config[0].nat_ip

@@ -1,8 +1,0 @@
-.git
-.env
-outputs/
-terraform/
-__pycache__
-*.pyc
-.dockerignore
-docker-compose.yaml
