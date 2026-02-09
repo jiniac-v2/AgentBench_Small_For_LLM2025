@@ -1,0 +1,22 @@
+[Unit]
+Description=AgentBench DBBench Task Worker
+After=network.target agentbench-controller.service
+Requires=agentbench-controller.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/agentbench
+EnvironmentFile=/opt/agentbench/.env
+Environment="PYTHONPATH=/opt/agentbench"
+
+ExecStart=/usr/bin/python3 -m src.server.task_worker dbbench-std \
+  -c configs/tasks/dbbench.yaml \
+  -C http://localhost:5020/api \
+  -s http://localhost:5023/api \
+  -p 5023
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

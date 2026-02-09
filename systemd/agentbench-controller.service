@@ -1,12 +1,13 @@
 [Unit]
-Description=AgentBench Controller
-After=agentbench-vllm.service
+Description=AgentBench Controller Server
+After=network.target agentbench-vllm.service
 Requires=agentbench-vllm.service
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/agentbench
 EnvironmentFile=/opt/agentbench/.env
+Environment="PYTHONPATH=/opt/agentbench"
 
 # Wait for vLLM to be healthy
 ExecStartPre=/bin/bash -c '\
@@ -32,9 +33,9 @@ ExecStartPre=/bin/bash -c '\
     echo "ERROR: vLLM inference test FAILED (HTTP $RESP)"; cat /tmp/vllm_test.json 2>/dev/null; exit 1; \
   fi'
 
-ExecStart=/usr/bin/python3 -m src.server.task_controller --port 5000
-Restart=on-failure
-RestartSec=5
+ExecStart=/usr/bin/python3 -m src.server.task_controller -p 5020
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target

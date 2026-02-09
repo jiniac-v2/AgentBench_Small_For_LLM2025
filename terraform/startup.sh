@@ -12,10 +12,10 @@ set -e
 #   4. Generate config from instance metadata
 #   5. Pre-pull Docker images
 #   6. Install & start Systemd services
-#      → vLLM (Docker)
-#      → Controller (port 5000)
-#      → DBBench workers x5 (port 5001-5005)
-#      → ALFWorld workers x5 (port 5101-5105)
+#      → vLLM (Docker, port 8000)
+#      → Controller (port 5020)
+#      → DBBench Worker (port 5023)
+#      → ALFWorld Worker (port 5021)
 #      → Assigner
 # ============================================================
 
@@ -109,35 +109,26 @@ log "Installing systemd services..."
 cp "${APP_DIR}/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
 
-# Worker count (matches start_task.yaml concurrency)
-DBBENCH_WORKERS=5
-ALFWORLD_WORKERS=5
-
-# Start in order: vLLM → Controller → DBBench workers → ALFWorld workers → Assigner
+# Start in order: vLLM → Controller → DBBench Worker → ALFWorld Worker → Assigner
 log "Starting agentbench-vllm..."
 systemctl enable --now agentbench-vllm
 
-log "Starting agentbench-controller..."
+log "Starting agentbench-controller (port 5020)..."
 systemctl enable --now agentbench-controller
 
-log "Starting DBBench workers (${DBBENCH_WORKERS})..."
-for i in $(seq 1 $DBBENCH_WORKERS); do
-  systemctl enable --now "agentbench-dbbench@${i}"
-done
+log "Starting agentbench-worker-dbbench (port 5023)..."
+systemctl enable --now agentbench-worker-dbbench
 
-log "Starting ALFWorld workers (${ALFWORLD_WORKERS})..."
-for i in $(seq 1 $ALFWORLD_WORKERS); do
-  systemctl enable --now "agentbench-alfworld@${i}"
-done
+log "Starting agentbench-worker-alfworld (port 5021)..."
+systemctl enable --now agentbench-worker-alfworld
 
 log "Starting agentbench-assigner..."
 systemctl enable --now agentbench-assigner
 
 log "=== Startup complete ==="
 log "Monitor with:"
-log "  journalctl -u agentbench-vllm -f"
-log "  journalctl -u agentbench-controller -f"
-log "  journalctl -u agentbench-dbbench@1 -f"
-log "  journalctl -u agentbench-alfworld@1 -f"
-log "  journalctl -u agentbench-assigner -f"
-log "  systemctl status 'agentbench-*'"
+log "  sudo systemctl status agentbench-vllm"
+log "  sudo systemctl status agentbench-controller"
+log "  sudo systemctl status agentbench-worker-dbbench"
+log "  sudo systemctl status agentbench-worker-alfworld"
+log "  sudo journalctl -u agentbench-assigner -f"
