@@ -1,5 +1,5 @@
 [Unit]
-Description=AgentBench Controller and Task Workers
+Description=AgentBench Controller
 After=agentbench-vllm.service
 Requires=agentbench-vllm.service
 
@@ -8,7 +8,7 @@ Type=simple
 WorkingDirectory=/opt/agentbench
 EnvironmentFile=/opt/agentbench/.env
 
-# Wait for vLLM to be healthy before starting
+# Wait for vLLM to be healthy
 ExecStartPre=/bin/bash -c '\
   echo "Waiting for vLLM health..."; \
   for i in $(seq 1 60); do \
@@ -32,8 +32,7 @@ ExecStartPre=/bin/bash -c '\
     echo "ERROR: vLLM inference test FAILED (HTTP $RESP)"; cat /tmp/vllm_test.json 2>/dev/null; exit 1; \
   fi'
 
-# start_task.py -a starts: Controller (port 5000) → DBBench workers → ALFWorld workers
-ExecStart=/usr/bin/python3 -m src.start_task -a
+ExecStart=/usr/bin/python3 -m src.server.task_controller --port 5000
 Restart=on-failure
 RestartSec=5
 

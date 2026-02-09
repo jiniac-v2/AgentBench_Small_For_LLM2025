@@ -12,7 +12,11 @@ set -e
 #   4. Generate config from instance metadata
 #   5. Pre-pull Docker images
 #   6. Install & start Systemd services
-#      → vLLM (Docker) → Tasks (Controller + Workers) → Assigner
+#      → vLLM (Docker)
+#      → Controller (port 5000)
+#      → DBBench workers x5 (port 5001-5005)
+#      → ALFWorld workers x5 (port 5101-5105)
+#      → Assigner
 # ============================================================
 
 APP_DIR="/opt/agentbench"
@@ -105,12 +109,26 @@ log "Installing systemd services..."
 cp "${APP_DIR}/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
 
-# Start in order: vLLM → Tasks (Controller + Workers) → Assigner
+# Worker count (matches start_task.yaml concurrency)
+DBBENCH_WORKERS=5
+ALFWORLD_WORKERS=5
+
+# Start in order: vLLM → Controller → DBBench workers → ALFWorld workers → Assigner
 log "Starting agentbench-vllm..."
 systemctl enable --now agentbench-vllm
 
-log "Starting agentbench-tasks..."
-systemctl enable --now agentbench-tasks
+log "Starting agentbench-controller..."
+systemctl enable --now agentbench-controller
+
+log "Starting DBBench workers (${DBBENCH_WORKERS})..."
+for i in $(seq 1 $DBBENCH_WORKERS); do
+  systemctl enable --now "agentbench-dbbench@${i}"
+done
+
+log "Starting ALFWorld workers (${ALFWORLD_WORKERS})..."
+for i in $(seq 1 $ALFWORLD_WORKERS); do
+  systemctl enable --now "agentbench-alfworld@${i}"
+done
 
 log "Starting agentbench-assigner..."
 systemctl enable --now agentbench-assigner
@@ -118,5 +136,8 @@ systemctl enable --now agentbench-assigner
 log "=== Startup complete ==="
 log "Monitor with:"
 log "  journalctl -u agentbench-vllm -f"
-log "  journalctl -u agentbench-tasks -f"
+log "  journalctl -u agentbench-controller -f"
+log "  journalctl -u agentbench-dbbench@1 -f"
+log "  journalctl -u agentbench-alfworld@1 -f"
 log "  journalctl -u agentbench-assigner -f"
+log "  systemctl status 'agentbench-*'"

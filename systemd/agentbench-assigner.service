@@ -1,7 +1,6 @@
 [Unit]
 Description=AgentBench Assigner (Evaluation Runner)
-After=agentbench-tasks.service
-Requires=agentbench-tasks.service
+After=agentbench-controller.service
 
 [Service]
 Type=oneshot
