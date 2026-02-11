@@ -138,19 +138,20 @@ for f in "${APP_DIR}/systemd/"*.service; do
 done
 systemctl daemon-reload
 
-echo "  Starting agentbench-vllm..."
-systemctl enable --now agentbench-vllm
+# enable (自動起動登録) だけ先にやる
+systemctl enable agentbench-vllm
+systemctl enable agentbench-controller
+systemctl enable agentbench-worker-dbbench
+systemctl enable agentbench-worker-alfworld
 
-echo "  Starting agentbench-controller..."
-systemctl enable --now agentbench-controller
-
-echo "  Starting agentbench-worker-dbbench..."
-systemctl enable --now agentbench-worker-dbbench
-
-echo "  Starting agentbench-worker-alfworld..."
-systemctl enable --now agentbench-worker-alfworld
-
-echo "  Assigner service installed (not auto-started)."
+# 順番に起動: vLLM → controller → workers
+# systemd の依存関係 (After/Requires) で順番が保証される
+echo "  Starting services (vLLM → Controller → Workers)..."
+echo "  vLLM のモデルロードに数分かかります。"
+systemctl start agentbench-vllm
+systemctl start agentbench-controller
+systemctl start agentbench-worker-dbbench agentbench-worker-alfworld
+echo "  All services started."
 
 # ============================================================
 # 完了
