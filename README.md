@@ -116,33 +116,39 @@ gcloud services enable secretmanager.googleapis.com     # Secret Manager (privat
 
 GPU クォータは新規プロジェクトではデフォルト **0** です。引き上げが必要です。
 
-**コンソールで確認:**
-
-1. [Google Cloud コンソール → IAM と管理 → 割り当て](https://console.cloud.google.com/iam-admin/quotas) を開く
-2. フィルタ欄をクリックし、以下の条件で絞り込む:
-   - **サービス**: `Compute Engine API` を選択
-   - **指標**: `NVIDIA L4 GPUs` と入力して選択
-3. 一覧に `me-central2` リージョンの行が表示される。「上限」が **0** なら引き上げが必要
-
-**引き上げリクエスト:**
-
-4. 対象のクォータ行のチェックボックスをオンにする
-5. ページ上部の **「割り当てを編集」** をクリック
-6. 右側パネルで **「新しい上限」に `1`** を入力
-7. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
-8. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
-
-> 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
-
-**CLI で確認する場合:**
+**CLI で確認 (推奨):**
 
 ```bash
-# リージョンのクォータを確認 (NVIDIA_L4_GPUS の行を探す)
 gcloud compute regions describe me-central2 \
   --project YOUR_PROJECT_ID \
   --format="table(quotas.metric,quotas.limit,quotas.usage)" \
   | grep -i nvidia
 ```
+
+`NVIDIA_L4_GPUS` の `limit` が `0` なら引き上げが必要です。
+
+**コンソールで確認・引き上げ:**
+
+1. [Google Cloud コンソール → IAM と管理 → 割り当て](https://console.cloud.google.com/iam-admin/quotas) を開く
+2. ページ左上の **「割り当てタイプ」ドロップダウンを「すべての割り当て」に変更** する
+   (デフォルトの「使用中の割り当て」だと使用量 0 のクォータが非表示になる)
+3. フィルタ欄で絞り込む:
+   - **サービス**: `Compute Engine API` を選択
+   - **制限名** (Limit Name): `NVIDIA_L4` と入力
+4. 一覧に `NVIDIA_L4_GPUS` が表示される。`me-central2` リージョンの「上限」が **0** なら引き上げが必要
+
+> ヒットしない場合: フィルタの「リージョン」は指定しないでください。使用量 0 のクォータはリージョン指定すると表示されません。
+
+**引き上げリクエスト:**
+
+5. 対象のクォータ行のチェックボックスをオンにする
+6. ページ上部の **「割り当てを編集」** をクリック
+7. 右側パネルで **「新しい上限」に `1`** を入力
+8. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
+9. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
+
+> 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
+> 無料トライアルアカウントでは GPU クォータは付与されません。
 
 ### 1. VM 構築 (ローカルから一発)
 
