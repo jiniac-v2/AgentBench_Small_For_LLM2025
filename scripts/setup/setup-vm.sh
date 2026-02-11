@@ -105,6 +105,7 @@ echo "  Verifying critical dependencies..."
 python3 -c "import gym" || { echo "ERROR: gym not installed. Try: pip3 install gym"; exit 1; }
 python3 -c "import alfworld" || { echo "ERROR: alfworld not installed. Try: pip3 install alfworld"; exit 1; }
 python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; exit 1; }
+python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alfworld."; exit 1; }
 echo "  All dependencies verified."
 
 # ============================================================
@@ -142,6 +143,10 @@ echo ""
 echo "=========================================="
 echo " VM セットアップ完了!"
 echo "=========================================="
+echo ""
+echo "重要: docker グループの反映には再ログインが必要です。"
+echo "  exit して SSH で再接続するか、以下を実行:"
+echo "  newgrp docker"
 echo ""
 echo "次のステップ: systemd サービスのインストール"
 echo "  sudo bash ${APP_DIR}/scripts/setup/setup-systemd.sh"

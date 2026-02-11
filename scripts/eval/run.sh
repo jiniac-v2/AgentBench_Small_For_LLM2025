@@ -72,7 +72,9 @@ done
 
 # 3. Controller + Workers を起動
 echo "[3/4] Starting Controller + Workers..."
-python3 -m src.start_task -a &
+# start_task.py は while True: input() で待機する設計なので
+# バックグラウンド実行時は stdin を開いたままにする
+tail -f /dev/null | python3 -m src.start_task -a &
 PIDS+=($!)
 
 # Workers の登録待ち

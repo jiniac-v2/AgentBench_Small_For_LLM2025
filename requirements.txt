@@ -18,3 +18,4 @@ docker==6.1.2
 gym
 alfworld
 nltk
+torch
