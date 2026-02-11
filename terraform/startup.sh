@@ -70,6 +70,38 @@ if [ -n "$SSH_USER" ]; then
 fi
 
 # ============================================================
+# 4. リポジトリを clone
+# ============================================================
+GIT_REPO=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/git-repo \
+  2>/dev/null || echo "")
+GIT_BRANCH=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/git-branch \
+  2>/dev/null || echo "main")
+
+if [ -n "$GIT_REPO" ] && [ -n "$SSH_USER" ]; then
+  APP_DIR="/home/${SSH_USER}/AgentBench_Small_For_LLM2025"
+  if [ -d "$APP_DIR" ]; then
+    log "Repo already exists at ${APP_DIR}. Skipping clone."
+  else
+    # private リポの場合: Secret Manager から PAT を取得
+    PAT=$(gcloud secrets versions access latest --secret=github-pat 2>/dev/null || echo "")
+    if [ -n "$PAT" ]; then
+      CLONE_URL=$(echo "$GIT_REPO" | sed "s|https://|https://x-access-token:${PAT}@|")
+      log "Cloning with GitHub PAT from Secret Manager..."
+    else
+      CLONE_URL="$GIT_REPO"
+      log "Cloning (public repo)..."
+    fi
+    git clone -b "$GIT_BRANCH" "$CLONE_URL" "$APP_DIR"
+    chown -R "${SSH_USER}:${SSH_USER}" "$APP_DIR"
+    log "Cloned ${GIT_REPO} (branch: ${GIT_BRANCH}) to ${APP_DIR}"
+  fi
+else
+  log "WARNING: git-repo or ssh-user metadata not set. Skipping clone."
+fi
+
+# ============================================================
 # Done
 # ============================================================
 touch "$PROVISION_MARKER"
