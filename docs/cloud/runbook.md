@@ -59,6 +59,33 @@ python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/e
 
 ---
 
+## デバッグ: 単一タスクだけ実行する
+
+ALFWorld / DBBench を個別に動かしたい場合は、専用のデバッグ用設定を使います。
+同時実行数は通常実行と同じです（ALF: 5並列, DB: 1並列, エージェント: 5並列）。
+
+### ALFWorld だけ
+
+```bash
+# ターミナル 1: タスクサーバー
+sudo -E python3 -m src.start_task -a --config configs/start_task_alf.yaml
+
+# ターミナル 2: アサイナー
+python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
+```
+
+### DBBench だけ
+
+```bash
+# ターミナル 1: タスクサーバー
+sudo -E python3 -m src.start_task -a --config configs/start_task_db.yaml
+
+# ターミナル 2: アサイナー
+python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
+```
+
+---
+
 ## Step 4: 結果確認
 
 ```bash
