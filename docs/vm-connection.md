@@ -42,10 +42,26 @@ For example, try running:
 
 ### 3. VSCode から接続
 
+#### 方法 1: コマンドパレットから
+
 1. `Cmd+Shift+P` (Mac) / `Ctrl+Shift+P` (Windows/Linux)
 2. **Remote-SSH: Connect to Host...** を選択
 3. `agentbench-eval.ZONE.PROJECT_ID` を選択
-4. 新しい VSCode ウィンドウが開き、VM に接続される
+
+#### 方法 2: 左下のリモートアイコンから
+
+1. VSCode 左下の **緑色の `><` アイコン** をクリック
+2. **ホストに接続する (Connect to Host...)** を選択
+3. `agentbench-eval.ZONE.PROJECT_ID` を選択
+
+#### 方法 3: リモートエクスプローラーから
+
+1. 左サイドバーの **リモートエクスプローラー** アイコン (モニターのアイコン) をクリック
+2. ドロップダウンで **SSH ターゲット (Remotes (SSH))** を選択
+3. `agentbench-eval.ZONE.PROJECT_ID` が一覧に表示される
+4. ホスト名の右にある **→ アイコン** (Connect in Current Window) をクリック
+
+いずれの方法でも、新しい VSCode ウィンドウが開き VM に接続されます。
 
 ### 4. リモート開発
 
