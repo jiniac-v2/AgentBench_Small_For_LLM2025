@@ -101,10 +101,9 @@ if __name__ == "__main__":
             subprocess.Popen(
                 ["python", "-m", "src.server.task_controller", "--port", "5000"]
             )
-        controller_check = config.get("controller", "http://localhost:5000/api")
         for i in range(10):
             try:
-                requests.get(controller_check + "/list_workers")
+                requests.get("http://localhost:5000/api/list_workers")
                 break
             except Exception as e:
                 print("Waiting for controller to start...")

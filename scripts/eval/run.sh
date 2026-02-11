@@ -78,7 +78,7 @@ PIDS+=($!)
 # Workers の登録待ち
 echo "  Waiting for all workers to register..."
 for i in $(seq 1 60); do
-  WORKERS=$(curl -sf http://localhost:5020/api/list_workers 2>/dev/null || echo "")
+  WORKERS=$(curl -sf http://localhost:5000/api/list_workers 2>/dev/null || echo "")
   if echo "$WORKERS" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)

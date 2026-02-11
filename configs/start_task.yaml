@@ -1,5 +1,3 @@
-controller: "http://localhost:5020/api"
-
 definition:
   import: tasks/task_assembly.yaml
 
