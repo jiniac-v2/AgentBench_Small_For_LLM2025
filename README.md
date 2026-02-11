@@ -86,11 +86,67 @@ bash scripts/run.sh
 
 ## GCP デプロイ
 
-### 前提条件
+### 0. 事前準備
 
-- `gcloud` CLI インストール・認証済み (`gcloud auth login && gcloud auth application-default login`)
-- `terraform` >= 1.0 インストール済み
-- 対象GCPプロジェクトへのアクセス権限
+#### ツールのインストール (macOS)
+
+**gcloud CLI:**
+```bash
+# Apple Silicon (M1/M2/M3)
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
+tar -xf google-cloud-cli-darwin-arm.tar.gz -C ~/
+~/google-cloud-sdk/install.sh   # "Modify profile to update your $PATH?" → Y
+source ~/.zshrc
+
+# Intel Mac
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-x86_64.tar.gz
+tar -xf google-cloud-cli-darwin-x86_64.tar.gz -C ~/
+~/google-cloud-sdk/install.sh
+source ~/.zshrc
+```
+
+**Terraform:**
+```bash
+brew install terraform
+```
+
+#### GCP 認証
+
+```bash
+gcloud auth login                        # ブラウザでGoogleアカウント認証
+gcloud auth application-default login    # Terraform 用の認証
+```
+
+#### GCP プロジェクトの準備
+
+```bash
+# プロジェクト一覧を確認
+gcloud projects list
+
+# 使用するプロジェクトを設定
+gcloud config set project YOUR_PROJECT_ID
+
+# 必要な API を有効化
+gcloud services enable compute.googleapis.com           # Compute Engine
+gcloud services enable iam.googleapis.com               # IAM
+gcloud services enable secretmanager.googleapis.com     # Secret Manager (private repo 用)
+```
+
+#### GPU クォータの確認
+
+GPU クォータは新規プロジェクトではデフォルト **0** です。引き上げが必要です。
+
+1. [Google Cloud コンソール → クォータ](https://console.cloud.google.com/iam-admin/quotas) を開く
+2. フィルタに `NVIDIA_L4_GPUS` と入力
+3. `me-central2` リージョンの値が **1 以上** であることを確認
+4. 0 の場合 → 「クォータを編集」→ 上限を `1` にリクエスト
+
+> クォータ引き上げには数分〜数日かかる場合があります。
+
+#### 請求先アカウント
+
+GCE (GPU付き) を使うには請求先アカウントが紐づいている必要があります。
+[Cloud コンソール → お支払い](https://console.cloud.google.com/billing) で確認してください。
 
 ### 1. VM 構築 (ローカルから一発)
 
