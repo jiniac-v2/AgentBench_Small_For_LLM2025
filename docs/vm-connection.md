@@ -24,8 +24,10 @@ VSCode の **Remote - SSH** 拡張機能で VM に接続し、エクスプロー
 `gcloud compute config-ssh` を実行すると、プロジェクト内の全 VM に対する SSH 設定が `~/.ssh/config` に自動追記されます。
 
 ```bash
-gcloud compute config-ssh --project YOUR_PROJECT_ID
+gcloud compute config-ssh
 ```
+
+`gcloud auth login` で認証済みであれば、プロジェクトの VM を自動検出し、SSH config (`~/.ssh/config`) と鍵ペア (`~/.ssh/google_compute_engine`) を生成します。
 
 成功すると以下のように表示されます:
 
@@ -36,7 +38,6 @@ For example, try running:
   $ ssh agentbench-eval.asia-northeast1-a.YOUR_PROJECT_ID
 ```
 
-> SSH 鍵ペア (`~/.ssh/google_compute_engine`) も自動生成されます。
 > VM の外部 IP が変わった場合 (停止→起動後など) は、再度 `gcloud compute config-ssh` を実行してください。
 
 ### 3. VSCode から接続
@@ -63,7 +64,7 @@ For example, try running:
 不要になったら自動生成された設定を削除できます:
 
 ```bash
-gcloud compute config-ssh --remove --project YOUR_PROJECT_ID
+gcloud compute config-ssh --remove
 ```
 
 ## 補足: Cloud Code で VM の状態を確認する
