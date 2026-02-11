@@ -8,7 +8,7 @@
 
 ```bash
 # switch-model.sh を編集してモデル名・HFトークンを設定
-vi ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
+vi ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
 
 ```bash
@@ -20,14 +20,14 @@ HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
 
 ```bash
 # モデル切替 (.env + config 更新 → サービス再起動)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
+sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
 
 ### ローカル環境
 
 ```bash
 export VLLM_MODEL="your-org/your-model"
-bash scripts/run.sh
+bash scripts/eval/run.sh
 ```
 
 ---

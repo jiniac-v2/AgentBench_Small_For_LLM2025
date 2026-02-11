@@ -110,13 +110,12 @@ git_branch   = "main"              # VM にクローンするブランチ
 
 ```bash
 # VM 作成 + 構築完了待ち + リポジトリ clone
-bash scripts/setup-gcp.sh
+bash scripts/infra/setup-gcp.sh
 ```
 
 `setup-gcp.sh` は以下を実行します:
 1. `terraform apply` (VM 作成)
-2. 構築完了待ち (SSH 接続 + startup script 完了を確認、最大 10 分)
-3. リポジトリを VM に clone (`git_branch` で指定したブランチ、private リポの場合は Secret Manager の PAT を使用)
+2. startup script が自動で clone (private リポの場合は Secret Manager の PAT を使用)
 
 ## Step 7: VM 環境構築
 
@@ -132,14 +131,16 @@ SSH で VM に接続し、環境構築スクリプトを実行します。接続
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 # 環境構築 (VM 上で実行)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh
+sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
 ```
 
 `setup-vm.sh` は以下を実行します:
-1. Docker の確認・docker グループ設定
-2. Python 依存パッケージのインストール
-3. `.env` / agent config の生成
-4. Docker イメージの pull (vLLM, MySQL)
+1. Docker Engine のインストール
+2. NVIDIA Container Toolkit のインストール
+3. docker グループ設定
+4. Python 依存パッケージのインストール
+5. `.env` / agent config の生成
+6. Docker イメージの pull (vLLM, MySQL)
 5. systemd サービスのインストール・起動
 
 ---

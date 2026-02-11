@@ -6,7 +6,7 @@ set -e
 #
 # Usage:
 #   1. このファイルの VLLM_MODEL, HF_TOKEN を編集
-#   2. sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
+#   2. sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 #
 # 処理内容:
 #   1. .env にモデル名・HFトークンを書き込み

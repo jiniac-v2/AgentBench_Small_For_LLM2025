@@ -5,7 +5,7 @@ set -e
 # GCP VM セットアップスクリプト (ローカルから実行)
 #
 # Usage:
-#   bash scripts/setup-gcp.sh
+#   bash scripts/infra/setup-gcp.sh
 #
 # Prerequisites:
 #   - gcloud CLI インストール・認証済み
@@ -78,17 +78,17 @@ echo "=========================================="
 echo " VM 作成完了!"
 echo "=========================================="
 echo ""
-echo "startup script が Docker インストール + clone を実行中です。"
-echo "5分ほど待ってから SSH してください。"
+echo "startup script が clone を実行中です。"
+echo "数分待ってから SSH してください。"
 echo ""
 echo "1. SSH 接続:"
 echo "   gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
 echo ""
 echo "2. 環境構築 (VM 上で実行 / 初回のみ):"
-echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh"
+echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh"
 echo ""
 echo "3. 評価実行 (VM 上で実行):"
-echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh"
+echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh"
 echo ""
 echo "VSCode Remote SSH:"
 echo "   gcloud compute config-ssh"

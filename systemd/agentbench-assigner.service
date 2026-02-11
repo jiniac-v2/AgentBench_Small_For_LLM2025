@@ -28,4 +28,4 @@ assert \"dbbench-std\" in tasks and \"alfworld-std\" in tasks" 2>/dev/null; then
 ExecStart=/usr/bin/python3 -m src.assigner configs/assignments/default.yaml
 
 # NOTE: No [Install] section - this service is NOT auto-started on boot.
-# It is triggered per evaluation via: sudo bash /opt/agentbench/scripts/switch-model.sh
+# It is triggered per evaluation via: sudo bash /opt/agentbench/scripts/eval/switch-model.sh

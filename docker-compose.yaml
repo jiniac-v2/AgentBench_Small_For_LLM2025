@@ -2,7 +2,7 @@
 # Usage:
 #   cp .env.example .env && vi .env
 #   docker compose up -d
-#   bash scripts/run.sh
+#   bash scripts/eval/run.sh
 services:
   vllm:
     image: vllm/vllm-openai:v0.13.0

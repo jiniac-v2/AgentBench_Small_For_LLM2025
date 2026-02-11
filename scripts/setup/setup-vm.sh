@@ -5,7 +5,7 @@ set -e
 # AgentBench VM 環境構築スクリプト
 #
 # Usage:
-#   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh
+#   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
 #
 # Prerequisites:
 #   - VM が起動済み (terraform apply 完了)
@@ -157,8 +157,8 @@ echo " セットアップ完了!"
 echo "=========================================="
 echo ""
 echo "モデル切替 (必要な場合):"
-echo "  vi ${APP_DIR}/scripts/switch-model.sh   # VLLM_MODEL を編集"
-echo "  sudo bash ${APP_DIR}/scripts/switch-model.sh"
+echo "  vi ${APP_DIR}/scripts/eval/switch-model.sh   # VLLM_MODEL を編集"
+echo "  sudo bash ${APP_DIR}/scripts/eval/switch-model.sh"
 echo ""
 echo "評価実行:"
 echo "  cd ${APP_DIR}"

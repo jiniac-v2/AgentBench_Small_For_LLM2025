@@ -43,7 +43,7 @@ docker run --rm --gpus all --ipc=host -p 8000:8000 \
 
 ```bash
 export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
-bash scripts/run.sh
+bash scripts/eval/run.sh
 ```
 
 `run.sh` は以下を実行します:

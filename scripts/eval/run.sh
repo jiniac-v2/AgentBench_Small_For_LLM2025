@@ -6,7 +6,7 @@ set -e
 #
 # Usage:
 #   export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
-#   bash scripts/run.sh
+#   bash scripts/eval/run.sh
 #
 # Prerequisites:
 #   - Python 3.9+ with requirements.txt installed
