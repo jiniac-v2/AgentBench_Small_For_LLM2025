@@ -2,7 +2,7 @@ import: definition.yaml
 
 concurrency:
   task:
-    dbbench-std: 5
+    dbbench-std: 1
     alfworld-std: 5
   agent:
     vllm-model: 5
