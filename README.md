@@ -140,24 +140,49 @@ gcloud compute ssh agentbench-eval \
   --project your-project-id
 ```
 
-VM 起動後、`startup.sh` が自動で以下を実行します:
+VM 起動後、`startup.sh` が自動で初回セットアップを実行します（冪等: 2回目以降はスキップ）:
 
 ```
-startup.sh (自動)
+startup.sh (初回のみ)
   ├── Docker Compose plugin + NVIDIA Container Toolkit
   ├── git clone (Self-Clone)
   ├── pip install -r requirements.txt
   ├── .env 生成 (メタデータから VLLM_MODEL 取得)
   ├── docker pull mysql:9.5.0 / vllm-openai:v0.13.0
-  └── systemd サービス起動
+  └── systemd サービス有効化 (インフラのみ)
        ├── agentbench-vllm          (Docker, port 8000)
        ├── agentbench-controller    (port 5020, 推論テスト込み)
        ├── agentbench-worker-dbbench   (port 5023)
-       ├── agentbench-worker-alfworld  (port 5021)
-       └── agentbench-assigner      (評価実行)
+       └── agentbench-worker-alfworld  (port 5021)
+
+※ Assigner (評価) は自動起動しません。モデル毎に手動実行します。
 ```
 
-### 5. サービス監視
+### 5. 評価実行 (モデル切り替え)
+
+VM は一度構築すれば、複数モデルの評価に繰り返し使えます。
+
+```bash
+# SSH 接続した状態で
+
+# 初回評価（Terraform で指定したモデル）
+sudo bash /opt/agentbench/scripts/switch-model.sh Qwen/Qwen2.5-7B-Instruct
+
+# 別モデルに切り替えて評価
+sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-model
+
+# HuggingFace private モデルの場合（READトークン付き）
+sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-private-model hf_xxxxxxxxxxxxx
+```
+
+`switch-model.sh` は以下を自動実行します:
+1. `.env` にモデル名・HFトークンを更新
+2. `api_agents.yaml` のモデル名を更新
+3. vLLM + 全サービスを再起動
+4. 前回の出力をクリア
+5. Assigner (評価) を実行
+
+### 6. サービス監視
 
 ```bash
 # startup スクリプトのログ
@@ -182,7 +207,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-### 6. 結果取得
+### 7. 結果取得
 
 ```bash
 # VM 上で確認
@@ -192,24 +217,6 @@ ls /opt/agentbench/outputs/
 gcloud compute scp --recurse \
   agentbench-eval:/opt/agentbench/outputs/ ./outputs/ \
   --zone me-central2-c --project your-project-id
-```
-
-### 7. モデル変更・再実行
-
-```bash
-# SSH 接続した状態で
-sudo vi /opt/agentbench/.env           # VLLM_MODEL を変更
-sudo sed -i 's|model:.*|model: "新モデル名"|' /opt/agentbench/configs/agents/api_agents.yaml
-
-# サービス再起動
-sudo systemctl restart agentbench-vllm
-sudo systemctl restart agentbench-controller
-sudo systemctl restart agentbench-worker-dbbench
-sudo systemctl restart agentbench-worker-alfworld
-
-# 前回の出力を削除して再実行
-sudo rm -rf /opt/agentbench/outputs/*
-sudo systemctl restart agentbench-assigner
 ```
 
 ### 8. VM 削除

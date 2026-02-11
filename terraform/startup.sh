@@ -2,26 +2,46 @@
 set -e
 
 # ============================================================
-# AgentBench VM Startup Script
+# AgentBench VM Startup Script (Idempotent)
 # Deep Learning VM (Ubuntu 22.04 + CUDA 12.8 + NVIDIA 570)
 #
-# Flow:
+# Initial boot:
 #   1. Install Docker Compose plugin + NVIDIA Container Toolkit
 #   2. Clone repository (Secret Manager for private repos)
 #   3. Install Python dependencies
 #   4. Generate config from instance metadata
 #   5. Pre-pull Docker images
-#   6. Install & start Systemd services
-#      → vLLM (Docker, port 8000)
-#      → Controller (port 5020)
-#      → DBBench Worker (port 5023)
-#      → ALFWorld Worker (port 5021)
-#      → Assigner
+#   6. Install & enable Systemd services (infrastructure only)
+#
+# Subsequent boots:
+#   - Skip provisioning, just ensure infrastructure services run
+#
+# Evaluation is triggered separately via:
+#   sudo bash /opt/agentbench/scripts/switch-model.sh <model-name> [hf-token]
 # ============================================================
 
 APP_DIR="/opt/agentbench"
+PROVISION_MARKER="${APP_DIR}/.provisioned"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a /var/log/agentbench-startup.log; }
+
+# ============================================================
+# Skip if already provisioned
+# ============================================================
+if [ -f "$PROVISION_MARKER" ]; then
+  log "Already provisioned. Starting infrastructure services..."
+
+  systemctl daemon-reload
+  systemctl start agentbench-vllm
+  systemctl start agentbench-controller
+  systemctl start agentbench-worker-dbbench
+  systemctl start agentbench-worker-alfworld
+
+  log "Infrastructure services started. Use switch-model.sh to run evaluation."
+  exit 0
+fi
+
+log "=== First-time provisioning ==="
 
 # ============================================================
 # 1. Docker Compose plugin
@@ -102,14 +122,14 @@ docker pull vllm/vllm-openai:v0.13.0 &
 wait
 
 # ============================================================
-# 7. Install & start Systemd services
+# 7. Install & enable Systemd services (infrastructure only)
 # ============================================================
 log "Installing systemd services..."
 
 cp "${APP_DIR}/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
 
-# Start in order: vLLM → Controller → DBBench Worker → ALFWorld Worker → Assigner
+# Enable infrastructure services (auto-start on boot)
 log "Starting agentbench-vllm..."
 systemctl enable --now agentbench-vllm
 
@@ -122,13 +142,19 @@ systemctl enable --now agentbench-worker-dbbench
 log "Starting agentbench-worker-alfworld (port 5021)..."
 systemctl enable --now agentbench-worker-alfworld
 
-log "Starting agentbench-assigner..."
-systemctl enable --now agentbench-assigner
+# NOTE: Assigner is NOT auto-started. It runs per evaluation via switch-model.sh
+log "Assigner service installed (not auto-started)."
 
-log "=== Startup complete ==="
-log "Monitor with:"
-log "  sudo systemctl status agentbench-vllm"
-log "  sudo systemctl status agentbench-controller"
-log "  sudo systemctl status agentbench-worker-dbbench"
-log "  sudo systemctl status agentbench-worker-alfworld"
-log "  sudo journalctl -u agentbench-assigner -f"
+# ============================================================
+# Mark as provisioned
+# ============================================================
+touch "$PROVISION_MARKER"
+
+log "=== Provisioning complete ==="
+log ""
+log "Infrastructure services are running."
+log "To run evaluation with the initial model:"
+log "  sudo bash ${APP_DIR}/scripts/switch-model.sh ${VLLM_MODEL}"
+log ""
+log "To switch to a different model:"
+log "  sudo bash ${APP_DIR}/scripts/switch-model.sh <model-name> [hf-token]"
