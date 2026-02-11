@@ -2,29 +2,28 @@
 set -e
 
 # ============================================================
-# AgentBench Local Service Launcher
+# AgentBench 評価実行スクリプト
 #
 # Usage:
-#   export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
 #   bash scripts/eval/run.sh
 #
 # Prerequisites:
-#   - Python 3.9+ with requirements.txt installed
-#   - Docker with NVIDIA GPU support (for vLLM + MySQL)
-#   - vLLM running on localhost:8000
-#     e.g. docker compose up -d
-#     or:  docker run --rm --gpus all --ipc=host -p 8000:8000 \
-#            vllm/vllm-openai:v0.13.0 \
-#            --model "$VLLM_MODEL" --max-model-len 8192 \
-#            --gpu-memory-utilization 0.95
+#   - vLLM が localhost:8000 で稼働中 (systemd or docker compose)
+#   - Python 依存パッケージインストール済み (setup-vm.sh)
 #
-# このスクリプトは Controller + Worker を起動し、評価を実行して終了します。
+# 処理内容:
+#   1. agent config のモデル名を設定
+#   2. vLLM の疎通確認
+#   3. Controller + Workers を起動 (start_task -a)
+#   4. Assigner で評価実行
+#   5. 完了後に全プロセスをクリーンアップ
 # ============================================================
 
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
 PIDS=()
 
 cleanup() {
+  echo ""
   echo "Cleaning up..."
   for pid in "${PIDS[@]}"; do
     kill "$pid" 2>/dev/null || true
@@ -33,16 +32,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== AgentBench Local Runner ==="
+echo "=== AgentBench Evaluation ==="
 echo "Model: ${VLLM_MODEL}"
 
-# 1. Substitute model name in agent config
+# 1. agent config のモデル名を設定
 echo "[1/4] Configuring agent for model: ${VLLM_MODEL}"
-sed "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" configs/agents/api_agents.yaml > /tmp/api_agents.yaml
-cp /tmp/api_agents.yaml configs/agents/api_agents.yaml
+sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" configs/agents/api_agents.yaml
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" configs/agents/api_agents.yaml
 cat configs/agents/api_agents.yaml
 
-# 2. Test vLLM inference
+# 2. vLLM の疎通確認
 echo "[2/4] Testing vLLM inference..."
 for i in $(seq 1 30); do
   HTTP_CODE=$(curl -s -o /tmp/vllm_test.json -w "%{http_code}" \
@@ -62,38 +61,12 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
-# 3. Start Controller (port 5020)
-echo "[3/4] Starting Controller (port 5020)..."
-python3 -m src.server.task_controller -p 5020 &
+# 3. Controller + Workers を起動
+echo "[3/4] Starting Controller + Workers..."
+python3 -m src.start_task -a &
 PIDS+=($!)
 
-# Wait for controller to be ready
-for i in $(seq 1 30); do
-  if curl -sf http://localhost:5020/api/list_workers > /dev/null 2>&1; then
-    echo "  Controller is ready"
-    break
-  fi
-  sleep 1
-done
-
-# 4. Start Workers: DBBench (port 5023) + ALFWorld (port 5021)
-echo "[4/4] Starting DBBench Worker (port 5023)..."
-python3 -m src.server.task_worker dbbench-std \
-  -c configs/tasks/dbbench.yaml \
-  -C http://localhost:5020/api \
-  -s http://localhost:5023/api \
-  -p 5023 &
-PIDS+=($!)
-
-echo "       Starting ALFWorld Worker (port 5021)..."
-python3 -m src.server.task_worker alfworld-std \
-  -c configs/tasks/alfworld.yaml \
-  -C http://localhost:5020/api \
-  -s http://localhost:5021/api \
-  -p 5021 &
-PIDS+=($!)
-
-# Wait for all workers to register (both dbbench-std and alfworld-std required)
+# Workers の登録待ち
 echo "  Waiting for all workers to register..."
 for i in $(seq 1 60); do
   WORKERS=$(curl -sf http://localhost:5020/api/list_workers 2>/dev/null || echo "")
@@ -114,8 +87,8 @@ assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
   sleep 2
 done
 
-echo ""
-echo "=== Services ready. Running evaluation... ==="
+# 4. 評価実行
+echo "[4/4] Running evaluation..."
 echo ""
 
 mkdir -p outputs
