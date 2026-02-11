@@ -39,20 +39,17 @@ docker run --rm --gpus all --ipc=host -p 8000:8000 \
   --gpu-memory-utilization 0.95
 ```
 
-## 3. 動作確認
+## 3. サービス起動
 
 ```bash
-# vLLM ヘルスチェック
-curl http://localhost:8000/health
-
-# 推論テスト
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "Qwen/Qwen2.5-7B-Instruct",
-    "messages": [{"role": "user", "content": "Hi"}],
-    "max_tokens": 10
-  }'
+export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
+bash scripts/run.sh
 ```
 
-環境構築は以上です。評価の実行は [評価実行ガイド](evaluation.md) を参照してください。
+`run.sh` は以下を実行します:
+1. agent config にモデル名を展開
+2. vLLM 推論テスト
+3. Controller 起動 (port 5020)
+4. Worker 起動 (DBBench: port 5023, ALFWorld: port 5021)
+
+サービスが起動したら、評価の実行は [評価実行](evaluation.md) を参照してください。

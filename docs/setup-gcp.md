@@ -90,7 +90,7 @@ gcloud compute accelerator-types list --filter="name=nvidia-l4" --project YOUR_P
 
 `terraform.tfvars` の `region` / `zone` は上記で表示されるゾーンから選択してください。
 
-## Step 6: VM 構築
+## Step 6: VM 作成
 
 ```bash
 # Terraform 設定
@@ -105,29 +105,41 @@ region       = "asia-northeast1"    # Step 5 で確認したリージョン
 zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
-git_branch   = "claude/v0.3_small-ooapW"  # ← 使用するブランチに変更
-vllm_model   = "Qwen/Qwen2.5-7B-Instruct"
-hf_token     = ""                   # gated model の場合のみ
+git_branch   = "main"              # VM にクローンするブランチ
 ```
 
-> **`git_branch`**: VM 上にクローンされるブランチです。必ず使用するブランチ名に変更してください。デフォルト (`main`) のままだと systemd サービスやスクリプトが配置されません。
-
 ```bash
-# VM 作成 〜 プロビジョニング完了まで一発実行
+# VM 作成 + SSH 待ち
 bash scripts/setup-gcp.sh
 ```
 
-`setup-gcp.sh` は以下を順番に実行します:
+`setup-gcp.sh` は以下を実行します:
 1. `terraform apply` (VM 作成)
 2. SSH 接続待ち
-3. プロビジョニング完了待ち (Docker pull 等で初回10〜15分)
 
-完了すると SSH 接続コマンドが表示されます。
+## Step 7: VM 環境構築
+
+SSH で VM に接続し、環境構築スクリプトを実行します。
+
+```bash
+# SSH 接続
+gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+
+# 環境構築 (VM 上で実行)
+sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh
+```
+
+`setup-vm.sh` は以下を実行します:
+1. Docker の確認・docker グループ設定
+2. Python 依存パッケージのインストール
+3. `.env` / agent config の生成
+4. Docker イメージの pull (vLLM, MySQL)
+5. systemd サービスのインストール・起動
 
 環境構築は以上です。次のステップ:
+- [評価実行](evaluation.md) — モデル切替・評価の実行
 - [VM 接続方法](vm-connection.md) — SSH / VSCode での接続
 - [VM の確認・起動・停止](vm-management.md) — VM の状態管理
-- [評価実行](evaluation.md) — モデル評価の実行
 
 ---
 
@@ -143,10 +155,6 @@ echo -n "ghp_xxxxxxxxxxxx" | \
 ```
 
 VM の Service Account に自動で Secret Manager アクセス権限が付与されます。
-
-### VM の管理
-
-VM の起動・停止・削除については [VM の確認・起動・停止](vm-management.md) を参照してください。
 
 ### GCP スペック
 

@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-# AgentBench Local Execution Script
+# AgentBench Local Service Launcher
 #
 # Usage:
 #   export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
@@ -17,6 +17,10 @@ set -e
 #            vllm/vllm-openai:v0.13.0 \
 #            --model "$VLLM_MODEL" --max-model-len 8192 \
 #            --gpu-memory-utilization 0.95
+#
+# このスクリプトは Controller + Worker を起動します。
+# 評価実行は別途手動で:
+#   python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
 # ============================================================
 
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
@@ -35,13 +39,13 @@ echo "=== AgentBench Local Runner ==="
 echo "Model: ${VLLM_MODEL}"
 
 # 1. Substitute model name in agent config
-echo "[1/5] Configuring agent for model: ${VLLM_MODEL}"
+echo "[1/4] Configuring agent for model: ${VLLM_MODEL}"
 sed "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" configs/agents/api_agents.yaml > /tmp/api_agents.yaml
 cp /tmp/api_agents.yaml configs/agents/api_agents.yaml
 cat configs/agents/api_agents.yaml
 
 # 2. Test vLLM inference
-echo "[2/5] Testing vLLM inference..."
+echo "[2/4] Testing vLLM inference..."
 for i in $(seq 1 30); do
   HTTP_CODE=$(curl -s -o /tmp/vllm_test.json -w "%{http_code}" \
     -X POST http://localhost:8000/v1/chat/completions \
@@ -61,7 +65,7 @@ for i in $(seq 1 30); do
 done
 
 # 3. Start Controller (port 5020)
-echo "[3/5] Starting Controller (port 5020)..."
+echo "[3/4] Starting Controller (port 5020)..."
 python3 -m src.server.task_controller -p 5020 &
 PIDS+=($!)
 
@@ -74,8 +78,8 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-# 4. Start Workers: DBBench (port 5023) → ALFWorld (port 5021)
-echo "[4/5] Starting DBBench Worker (port 5023)..."
+# 4. Start Workers: DBBench (port 5023) + ALFWorld (port 5021)
+echo "[4/4] Starting DBBench Worker (port 5023)..."
 python3 -m src.server.task_worker dbbench-std \
   -c configs/tasks/dbbench.yaml \
   -C http://localhost:5020/api \
@@ -106,10 +110,13 @@ assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
   sleep 2
 done
 
-# 5. Run Assigner
-echo "[5/5] Starting Assigner..."
-python3 -m src.assigner configs/assignments/default.yaml
-EXIT_CODE=$?
+echo ""
+echo "=== Services ready ==="
+echo ""
+echo "評価実行 (別ターミナルで):"
+echo "  python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log"
+echo ""
+echo "Ctrl+C でサービスを停止します。"
 
-echo "=== Done (exit code: ${EXIT_CODE}) ==="
-exit $EXIT_CODE
+# Keep running until Ctrl+C
+wait
