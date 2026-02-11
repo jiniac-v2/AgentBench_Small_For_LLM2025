@@ -114,45 +114,31 @@ pkill -f "src.start_task"
 
 ---
 
-## サービスの状態確認・監視
+## vLLM の状態確認・監視
 
 ```bash
-# 各サービスの状態
+# サービスの状態
 sudo systemctl status agentbench-vllm
-sudo systemctl status agentbench-controller
-sudo systemctl status agentbench-worker-dbbench
-sudo systemctl status agentbench-worker-alfworld
 
-# vLLM コンテナの確認
+# コンテナの確認
 sudo docker ps | grep vllm
 
 # ログの確認
 sudo journalctl -u agentbench-vllm -n 50
-sudo journalctl -u agentbench-controller -n 50
 
-# vLLM のログをリアルタイムで追跡
+# ログをリアルタイムで追跡
 sudo journalctl -u agentbench-vllm -f
 ```
 
-### サービスの手動再起動
+### vLLM の手動再起動
 
 ```bash
 sudo systemctl restart agentbench-vllm
-sudo systemctl restart agentbench-controller
-sudo systemctl restart agentbench-worker-dbbench
-sudo systemctl restart agentbench-worker-alfworld
 ```
 
 ---
 
 ## トラブルシューティング
-
-### サービスが起動しない
-
-```bash
-sudo journalctl -u agentbench-<service-name> -n 100
-sudo systemctl restart agentbench-<service-name>
-```
 
 ### "0 samples remaining"
 
