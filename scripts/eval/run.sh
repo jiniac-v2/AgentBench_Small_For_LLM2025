@@ -93,32 +93,26 @@ python3 -m src.server.task_worker alfworld-std \
   -p 5021 &
 PIDS+=($!)
 
-# Wait for workers to register (at least dbbench-std; alfworld-std is optional)
-REGISTERED=""
+# Wait for all workers to register (both dbbench-std and alfworld-std required)
+echo "  Waiting for all workers to register..."
 for i in $(seq 1 60); do
   WORKERS=$(curl -sf http://localhost:5020/api/list_workers 2>/dev/null || echo "")
-  REGISTERED=$(echo "$WORKERS" | python3 -c "
+  if echo "$WORKERS" | python3 -c "
 import sys, json
-try:
-    data = json.load(sys.stdin)
-    tasks = {w.get('task_name','') for w in data}
-    print(' '.join(sorted(tasks - {''})))
-except: pass
-" 2>/dev/null)
-  if echo "$REGISTERED" | grep -q "dbbench-std"; then
+data = json.load(sys.stdin)
+tasks = {w.get('task_name','') for w in data}
+assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
+" 2>/dev/null; then
+    echo "  All workers registered: dbbench-std, alfworld-std"
     break
+  fi
+  if [ "$i" = "60" ]; then
+    echo "  ERROR: Workers did not register within 120s"
+    echo "  Check: python3 -c 'import gym; import alfworld'"
+    exit 1
   fi
   sleep 2
 done
-if echo "$REGISTERED" | grep -q "dbbench-std"; then
-  echo "  Registered workers: ${REGISTERED}"
-  if ! echo "$REGISTERED" | grep -q "alfworld-std"; then
-    echo "  WARNING: alfworld-std failed to register (gym not installed?). Skipping ALFWorld."
-  fi
-else
-  echo "  ERROR: dbbench-std did not register within 120s"
-  exit 1
-fi
 
 echo ""
 echo "=== Services ready. Running evaluation... ==="

@@ -98,6 +98,13 @@ if ! command -v python &> /dev/null; then
 fi
 pip3 install -r "${APP_DIR}/requirements.txt"
 
+# 必須モジュールの検証
+echo "  Verifying critical dependencies..."
+python3 -c "import gym" || { echo "ERROR: gym not installed. Try: pip3 install gym"; exit 1; }
+python3 -c "import alfworld" || { echo "ERROR: alfworld not installed. Try: pip3 install alfworld"; exit 1; }
+python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; exit 1; }
+echo "  All dependencies verified."
+
 # ============================================================
 # 4. .env / agent config の生成
 # ============================================================
