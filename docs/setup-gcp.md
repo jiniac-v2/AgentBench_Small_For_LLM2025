@@ -105,9 +105,12 @@ region       = "asia-northeast1"    # Step 5 で確認したリージョン
 zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
+git_branch   = "claude/v0.3_small-ooapW"  # ← 使用するブランチに変更
 vllm_model   = "Qwen/Qwen2.5-7B-Instruct"
 hf_token     = ""                   # gated model の場合のみ
 ```
+
+> **`git_branch`**: VM 上にクローンされるブランチです。必ず使用するブランチ名に変更してください。デフォルト (`main`) のままだと systemd サービスやスクリプトが配置されません。
 
 ```bash
 # VM 作成 〜 プロビジョニング完了まで一発実行
