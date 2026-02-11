@@ -34,7 +34,7 @@ EOF
 
 # 2. Update agent config
 echo "[2/3] Updating agent config..."
-sed -i "s|model:.*|model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
 echo "  Agent config:"
 cat "${APP_DIR}/configs/agents/api_agents.yaml"
 

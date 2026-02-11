@@ -110,8 +110,8 @@ EOF
 
 # agent config のモデル名を置換
 sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" "${APP_DIR}/configs/agents/api_agents.yaml"
-# 既にモデル名が入っている場合も対応 (switch-model.sh と同じ)
-sed -i "s|model:.*|model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
+# 既にモデル名が入っている場合も対応 (インデントされた model: 行のみ)
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
 
 echo "  .env:"
 cat "${APP_DIR}/.env"
