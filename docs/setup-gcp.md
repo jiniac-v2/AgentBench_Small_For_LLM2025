@@ -119,7 +119,12 @@ bash scripts/setup-gcp.sh
 
 ## Step 7: VM 環境構築
 
-SSH で VM に接続し、環境構築スクリプトを実行します。
+SSH で VM に接続し、環境構築スクリプトを実行します。接続方法は2つあります:
+
+- **方法 A**: `gcloud compute ssh` コマンド（すぐ使える）
+- **方法 B**: VSCode Remote - SSH（IDE 機能をフル活用したい場合）
+
+詳細は [VM 接続方法](#vm-接続方法) を参照してください。ここでは方法 A で進めます。
 
 ```bash
 # SSH 接続
