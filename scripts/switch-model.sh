@@ -6,7 +6,7 @@ set -e
 #
 # Usage:
 #   1. このファイルの VLLM_MODEL, HF_TOKEN を編集
-#   2. sudo bash /opt/agentbench/scripts/switch-model.sh
+#   2. sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
 #
 # 処理内容:
 #   1. .env にモデル名・HFトークンを書き込み
@@ -21,9 +21,11 @@ VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
 HF_TOKEN=""
 # ---------------------
 
-APP_DIR="/opt/agentbench"
+# Auto-detect APP_DIR from script location
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Switching to model: ${VLLM_MODEL} ==="
+echo "APP_DIR: ${APP_DIR}"
 
 # 1. Update .env
 echo "[1/5] Updating .env..."

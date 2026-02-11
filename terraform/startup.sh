@@ -7,41 +7,51 @@ set -e
 #
 # Initial boot:
 #   1. Install Docker Compose plugin + NVIDIA Container Toolkit
-#   2. Clone repository (Secret Manager for private repos)
+#   2. Clone repository to /home/<user>/AgentBench_Small_For_LLM2025
 #   3. Install Python dependencies
 #   4. Generate config from instance metadata
 #   5. Pre-pull Docker images
-#   6. Install & enable Systemd services (infrastructure only)
+#   6. Install & enable Systemd services
 #
-# Subsequent boots:
-#   - Skip provisioning, just ensure infrastructure services run
-#
-# Evaluation is triggered separately via:
-#   sudo bash /opt/agentbench/scripts/switch-model.sh <model-name> [hf-token]
+# Subsequent boots (VM stop→start):
+#   - Skip provisioning. Services auto-start via systemd enable.
 # ============================================================
 
-APP_DIR="/opt/agentbench"
-PROVISION_MARKER="${APP_DIR}/.provisioned"
+PROVISION_MARKER="/var/log/agentbench-provisioned"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a /var/log/agentbench-startup.log; }
 
 # ============================================================
-# Skip if already provisioned
+# Skip if already provisioned (stop→start cycle)
 # ============================================================
 if [ -f "$PROVISION_MARKER" ]; then
-  log "Already provisioned. Starting infrastructure services..."
-
-  systemctl daemon-reload
-  systemctl start agentbench-vllm
-  systemctl start agentbench-controller
-  systemctl start agentbench-worker-dbbench
-  systemctl start agentbench-worker-alfworld
-
-  log "Infrastructure services started. Use switch-model.sh to run evaluation."
+  log "Already provisioned. Services auto-start via systemd."
   exit 0
 fi
 
-log "=== First-time provisioning ==="
+log "=== First-time provisioning START ==="
+
+# ============================================================
+# Resolve SSH user → APP_DIR
+# ============================================================
+SSH_USER=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/ssh-user \
+  2>/dev/null || echo "")
+
+if [ -n "$SSH_USER" ]; then
+  APP_DIR="/home/${SSH_USER}/AgentBench_Small_For_LLM2025"
+  # Ensure user and home directory exist (gcloud SSH creates them later, but we need them now)
+  if ! id "$SSH_USER" &>/dev/null; then
+    useradd -m -s /bin/bash "$SSH_USER"
+    log "Created user: ${SSH_USER}"
+  fi
+  mkdir -p "/home/${SSH_USER}"
+else
+  APP_DIR="/opt/agentbench"
+  log "WARNING: ssh-user metadata not set. Using ${APP_DIR}"
+fi
+
+log "APP_DIR=${APP_DIR}"
 
 # ============================================================
 # 1. Docker Compose plugin
@@ -69,23 +79,27 @@ if ! dpkg -l | grep -q nvidia-container-toolkit; then
 fi
 
 # ============================================================
-# 3. Clone repository (Self-Clone)
+# 3. Clone repository
 # ============================================================
 log "Cloning repository..."
 apt-get install -y git
 
-# Branch from instance metadata
 GIT_BRANCH=$(curl -s -H "Metadata-Flavor: Google" \
   http://metadata.google.internal/computeMetadata/v1/instance/attributes/git-branch \
   2>/dev/null || echo "main")
 
-# Secret Manager for private repo (optional)
 GITHUB_TOKEN=$(gcloud secrets versions access latest --secret="github-pat" 2>/dev/null || echo "")
 if [ -n "$GITHUB_TOKEN" ]; then
   git clone -b "$GIT_BRANCH" "https://${GITHUB_TOKEN}@github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
 else
   git clone -b "$GIT_BRANCH" "https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
 fi
+
+# Set ownership for SSH user
+if [ -n "$SSH_USER" ]; then
+  chown -R "${SSH_USER}:${SSH_USER}" "$APP_DIR"
+fi
+
 cd "$APP_DIR"
 
 # ============================================================
@@ -127,14 +141,17 @@ docker pull vllm/vllm-openai:v0.13.0 &
 wait
 
 # ============================================================
-# 7. Install & enable Systemd services (infrastructure only)
+# 7. Install & enable Systemd services
 # ============================================================
 log "Installing systemd services..."
 
-cp "${APP_DIR}/systemd/"*.service /etc/systemd/system/
+# Copy service files, replacing /opt/agentbench placeholder with actual APP_DIR
+for f in "${APP_DIR}/systemd/"*.service; do
+  sed "s|/opt/agentbench|${APP_DIR}|g" "$f" > "/etc/systemd/system/$(basename "$f")"
+done
 systemctl daemon-reload
 
-# Enable infrastructure services (auto-start on boot)
+# Enable infrastructure services (auto-start on boot via systemd)
 log "Starting agentbench-vllm..."
 systemctl enable --now agentbench-vllm
 
@@ -155,11 +172,4 @@ log "Assigner service installed (not auto-started)."
 # ============================================================
 touch "$PROVISION_MARKER"
 
-log "=== Provisioning complete ==="
-log ""
-log "Infrastructure services are running."
-log "To run evaluation with the initial model:"
-log "  sudo bash ${APP_DIR}/scripts/switch-model.sh ${VLLM_MODEL}"
-log ""
-log "To switch to a different model:"
-log "  sudo bash ${APP_DIR}/scripts/switch-model.sh <model-name> [hf-token]"
+log "=== First-time provisioning COMPLETE ==="

@@ -72,7 +72,8 @@ gcloud compute instances start agentbench-eval \
 2. `agentbench-eval` のチェックボックスをオン
 3. ページ上部の **「起動」** ボタンをクリック
 
-> 起動後、startup.sh が自動でインフラサービス (vLLM, Controller, Worker) を開始します (2回目以降はプロビジョニングをスキップ)。
+> 起動後、systemd が自動でインフラサービス (vLLM, Controller, Worker) を開始します。startup.sh はプロビジョニング済みの場合何もしません。
+> **注意**: 停止→起動で外部 IP が変わるため、VSCode Remote SSH を使う場合は `gcloud compute config-ssh` を再実行してください。
 
 ---
 

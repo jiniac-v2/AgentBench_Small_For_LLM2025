@@ -30,7 +30,7 @@ VM は一度構築すれば、複数モデルの評価に繰り返し使えま�
 
 ```bash
 # 1. switch-model.sh を編集してモデル名・HFトークンを設定
-sudo vi /opt/agentbench/scripts/switch-model.sh
+vi ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
 ```
 
 ```bash
@@ -42,7 +42,8 @@ HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
 
 ```bash
 # 2. 実行
-sudo bash /opt/agentbench/scripts/switch-model.sh
+sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
+
 ```
 
 `switch-model.sh` は以下を自動実行します:
@@ -68,11 +69,11 @@ sudo systemctl status agentbench-worker-alfworld
 
 ```bash
 # VM 上で確認
-ls /opt/agentbench/outputs/
+ls ~/AgentBench_Small_For_LLM2025/outputs/
 
 # ローカルにコピー
 gcloud compute scp --recurse \
-  agentbench-eval:/opt/agentbench/outputs/ ./outputs/ \
+  agentbench-eval:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 

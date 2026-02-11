@@ -33,6 +33,12 @@ variable "git_branch" {
   default     = "main"
 }
 
+variable "ssh_user" {
+  description = "SSH username (auto-detected by setup-gcp.sh)"
+  type        = string
+  default     = ""
+}
+
 variable "vllm_model" {
   description = "HuggingFace model ID or path for vLLM"
   type        = string

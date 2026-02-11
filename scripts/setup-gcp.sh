@@ -13,10 +13,10 @@ set -e
 #   - terraform/terraform.tfvars 設定済み
 #
 # このスクリプトは以下を順番に実行します:
-#   1. Terraform apply (VM 作成)
+#   1. Terraform apply (VM 作成, ssh_user を自動設定)
 #   2. SSH 接続待ち
-#   3. プロビジョニング完了待ち
-#   4. SSH 接続情報の表示
+#   3. プロビジョニング完了待ち (ログ表示)
+#   4. 完了メッセージ
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -46,17 +46,21 @@ if [ -z "$PROJECT_ID" ]; then
   exit 1
 fi
 
-echo "Project: ${PROJECT_ID}"
-echo "Zone:    ${ZONE}"
+# ssh_user を自動検出
+SSH_USER="$(whoami)"
+
+echo "Project:  ${PROJECT_ID}"
+echo "Zone:     ${ZONE}"
+echo "SSH User: ${SSH_USER}"
 echo ""
 
 # ----------------------------------------------------------
-# 2. Terraform apply
+# 2. Terraform apply (ssh_user を自動渡し)
 # ----------------------------------------------------------
 echo "[1/3] Terraform apply..."
 cd "${TERRAFORM_DIR}"
 terraform init -input=false
-terraform apply -auto-approve
+terraform apply -auto-approve -var="ssh_user=${SSH_USER}"
 
 INSTANCE_IP=$(terraform output -raw instance_ip 2>/dev/null || echo "")
 echo ""
@@ -84,50 +88,65 @@ for i in $(seq 1 30); do
 done
 
 # ----------------------------------------------------------
-# 4. プロビジョニング完了待ち
+# 4. プロビジョニング完了待ち (ログ表示)
 # ----------------------------------------------------------
 echo "[3/3] プロビジョニング完了待ち..."
 echo "  (初回はDocker image pull等で10〜15分程度かかります)"
-for i in $(seq 1 90); do
+echo ""
+for i in $(seq 1 120); do
+  # Check completion
   RESULT=$(gcloud compute ssh agentbench-eval \
     --zone "${ZONE}" --project "${PROJECT_ID}" \
-    --command "test -f /opt/agentbench/.provisioned && echo 'done' || echo 'waiting'" \
-    --quiet 2>/dev/null || echo "waiting")
-  if [ "$RESULT" = "done" ]; then
+    --command "test -f /var/log/agentbench-provisioned && echo 'DONE' || echo 'WAIT'" \
+    --quiet 2>/dev/null || echo "WAIT")
+
+  if [ "$RESULT" = "DONE" ]; then
+    echo ""
+    echo "  =========================================="
     echo "  プロビジョニング完了!"
+    echo "  =========================================="
     break
   fi
-  if [ "$i" = "90" ]; then
-    echo "  WARNING: プロビジョニングがタイムアウトしました。"
+
+  # Show latest log line
+  LOG=$(gcloud compute ssh agentbench-eval \
+    --zone "${ZONE}" --project "${PROJECT_ID}" \
+    --command "tail -1 /var/log/agentbench-startup.log 2>/dev/null || echo '(log not yet available)'" \
+    --quiet 2>/dev/null || echo "(waiting for VM...)")
+  echo "  [${i}/120] ${LOG}"
+
+  if [ "$i" = "120" ]; then
+    echo ""
+    echo "  WARNING: プロビジョニングがタイムアウトしました (20分)。"
     echo "  SSH で接続してログを確認してください:"
     echo "    gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
     echo "    sudo journalctl -u google-startup-scripts -f"
+    echo "    cat /var/log/agentbench-startup.log"
     exit 1
   fi
-  echo "  Provisioning... (${i}/90)"
   sleep 10
 done
 
 # ----------------------------------------------------------
 # 完了
 # ----------------------------------------------------------
+APP_DIR="/home/${SSH_USER}/AgentBench_Small_For_LLM2025"
 echo ""
 echo "=========================================="
-echo " VM セットアップ完了!"
+echo " セットアップ完了!"
 echo "=========================================="
 echo ""
 echo "SSH 接続:"
 echo "  gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
 echo ""
 echo "VSCode Remote SSH:"
-echo "  Host: ${INSTANCE_IP}"
-echo "  User: $(whoami)"
+echo "  gcloud compute config-ssh --project ${PROJECT_ID}"
+echo "  → Remote-SSH: Connect to Host → agentbench-eval.${ZONE}.${PROJECT_ID}"
 echo ""
 echo "評価実行 (SSH 接続後):"
-echo "  sudo bash /opt/agentbench/scripts/switch-model.sh Qwen/Qwen2.5-7B-Instruct"
+echo "  vi ${APP_DIR}/scripts/switch-model.sh   # モデル名を編集"
+echo "  sudo bash ${APP_DIR}/scripts/switch-model.sh"
 echo ""
 echo "結果取得 (ローカル):"
-echo "  gcloud compute scp --recurse agentbench-eval:/opt/agentbench/outputs/ ./outputs/ --zone ${ZONE} --project ${PROJECT_ID}"
+echo "  gcloud compute scp --recurse agentbench-eval:${APP_DIR}/outputs/ ./outputs/ --zone ${ZONE} --project ${PROJECT_ID}"
 echo ""
-echo "VM 削除:"
-echo "  cd terraform && terraform destroy"
