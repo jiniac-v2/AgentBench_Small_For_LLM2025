@@ -95,6 +95,9 @@ echo "[4/7] Installing Python dependencies..."
 if ! command -v pip3 &> /dev/null; then
   apt-get install -y python3-pip
 fi
+if ! command -v python &> /dev/null; then
+  ln -s "$(which python3)" /usr/local/bin/python
+fi
 pip3 install -r "${APP_DIR}/requirements.txt"
 
 # ============================================================
