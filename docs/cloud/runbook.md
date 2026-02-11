@@ -27,6 +27,12 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ## Step 2: タスクサーバー起動
 
+前回のプロセスが残っている場合は先に停止します:
+
+```bash
+lsof -ti :5001-5010 | xargs -r kill
+```
+
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 python3 -m src.start_task -a --config configs/start_task.yaml
