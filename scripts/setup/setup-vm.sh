@@ -18,7 +18,9 @@ set -e
 #   4. Python 依存パッケージのインストール
 #   5. .env / agent config の生成
 #   6. Docker イメージの pull
-#   7. systemd サービスのインストール・起動
+#
+# systemd サービスの設定は別途:
+#   sudo bash scripts/setup/setup-systemd.sh
 # ============================================================
 
 # ---- 設定 ----
@@ -41,7 +43,7 @@ echo ""
 # ============================================================
 # 1. Docker Engine
 # ============================================================
-echo "[1/7] Installing Docker Engine..."
+echo "[1/6] Installing Docker Engine..."
 if ! command -v docker &> /dev/null; then
   apt-get update
   apt-get install -y ca-certificates curl gnupg
@@ -61,7 +63,7 @@ fi
 # ============================================================
 # 2. NVIDIA Container Toolkit
 # ============================================================
-echo "[2/7] Installing NVIDIA Container Toolkit..."
+echo "[2/6] Installing NVIDIA Container Toolkit..."
 if ! dpkg -l | grep -q nvidia-container-toolkit; then
   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
     | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
@@ -79,7 +81,7 @@ fi
 # ============================================================
 # 3. ユーザーを docker グループに追加
 # ============================================================
-echo "[3/7] Configuring docker group..."
+echo "[3/6] Configuring docker group..."
 if ! groups "$ACTUAL_USER" | grep -q docker; then
   usermod -aG docker "$ACTUAL_USER"
   echo "  Added ${ACTUAL_USER} to docker group."
@@ -89,9 +91,9 @@ else
 fi
 
 # ============================================================
-# 3. Python 依存パッケージ
+# 4. Python 依存パッケージ
 # ============================================================
-echo "[4/7] Installing Python dependencies..."
+echo "[4/6] Installing Python dependencies..."
 apt-get install -y python3-pip cmake build-essential
 if ! command -v python &> /dev/null; then
   ln -s "$(which python3)" /usr/local/bin/python
@@ -106,18 +108,17 @@ python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; ex
 echo "  All dependencies verified."
 
 # ============================================================
-# 4. .env / agent config の生成
+# 5. .env / agent config の生成
 # ============================================================
-echo "[5/7] Generating configuration..."
+echo "[5/6] Generating configuration..."
 
 cat > "${APP_DIR}/.env" <<EOF
 VLLM_MODEL=${VLLM_MODEL}
 HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
 EOF
 
-# agent config のモデル名を置換
+# agent config のモデル名を置換 (インデントされた model: 行のみ)
 sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" "${APP_DIR}/configs/agents/api_agents.yaml"
-# 既にモデル名が入っている場合も対応 (インデントされた model: 行のみ)
 sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
 
 echo "  .env:"
@@ -126,54 +127,22 @@ echo "  Agent config:"
 cat "${APP_DIR}/configs/agents/api_agents.yaml"
 
 # ============================================================
-# 5. Docker イメージの pull
+# 6. Docker イメージの pull
 # ============================================================
-echo "[6/7] Pulling Docker images..."
+echo "[6/6] Pulling Docker images..."
 docker pull mysql:9.5.0 &
 docker pull vllm/vllm-openai:v0.13.0 &
 wait
 echo "  Docker images pulled."
 
 # ============================================================
-# 6. systemd サービスのインストール・起動
-# ============================================================
-echo "[7/7] Installing systemd services..."
-
-# /opt/agentbench プレースホルダーを実際の APP_DIR に置換してコピー
-for f in "${APP_DIR}/systemd/"*.service; do
-  sed "s|/opt/agentbench|${APP_DIR}|g" "$f" > "/etc/systemd/system/$(basename "$f")"
-done
-systemctl daemon-reload
-
-# enable + start (--no-block で非同期起動)
-# 依存関係: vLLM → Controller (health check 待ち) → Workers
-# Restart=always なので controller は vLLM 準備完了まで自動リトライする
-systemctl enable --now agentbench-vllm
-systemctl enable --now --no-block agentbench-controller
-systemctl enable --now --no-block agentbench-worker-dbbench
-systemctl enable --now --no-block agentbench-worker-alfworld
-
-echo "  サービスを起動しました。"
-echo "  vLLM のモデルロード完了後、Controller → Workers が順次起動します。"
-echo "  確認: sudo journalctl -u agentbench-vllm -f"
-
-# ============================================================
 # 完了
 # ============================================================
 echo ""
 echo "=========================================="
-echo " セットアップ完了!"
+echo " VM セットアップ完了!"
 echo "=========================================="
 echo ""
-echo "モデル切替 (必要な場合):"
-echo "  vi ${APP_DIR}/scripts/eval/switch-model.sh   # VLLM_MODEL を編集"
-echo "  sudo bash ${APP_DIR}/scripts/eval/switch-model.sh"
-echo ""
-echo "評価実行:"
-echo "  cd ${APP_DIR}"
-echo "  python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log"
-echo ""
-echo "サービス確認:"
-echo "  systemctl status agentbench-vllm"
-echo "  sudo journalctl -u agentbench-vllm -f"
+echo "次のステップ: systemd サービスのインストール"
+echo "  sudo bash ${APP_DIR}/scripts/setup/setup-systemd.sh"
 echo ""
