@@ -109,13 +109,13 @@ git_branch   = "main"              # VM にクローンするブランチ
 ```
 
 ```bash
-# VM 作成 + SSH 待ち
+# VM 作成 + 構築完了待ち
 bash scripts/setup-gcp.sh
 ```
 
 `setup-gcp.sh` は以下を実行します:
 1. `terraform apply` (VM 作成)
-2. SSH 接続待ち
+2. 構築完了待ち (SSH 接続 + startup script 完了を確認、最大 10 分)
 
 ## Step 7: VM 環境構築
 

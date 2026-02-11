@@ -66,23 +66,36 @@ echo ""
 echo "  VM created: ${INSTANCE_IP}"
 
 # ----------------------------------------------------------
-# 3. SSH 接続待ち
+# 3. 構築完了待ち (SSH + startup script 完了)
 # ----------------------------------------------------------
-echo "[2/2] SSH 接続待ち..."
-for i in $(seq 1 30); do
-  if gcloud compute ssh agentbench-eval \
+PROVISION_MARKER="/var/log/agentbench-provisioned"
+MAX_WAIT=60  # 60 × 10s = 10分
+
+echo "[2/2] 構築完了待ち (最大 $((MAX_WAIT * 10 / 60)) 分)..."
+for i in $(seq 1 ${MAX_WAIT}); do
+  RESULT=$(gcloud compute ssh agentbench-eval \
     --zone "${ZONE}" --project "${PROJECT_ID}" \
-    --command "echo ok" --quiet 2>/dev/null; then
-    echo "  SSH ready"
+    --command "test -f ${PROVISION_MARKER} && echo READY || echo NOTYET" \
+    --quiet 2>/dev/null || echo "SSH_FAIL")
+
+  if [ "$RESULT" = "READY" ]; then
+    echo "  構築完了!"
     break
   fi
-  if [ "$i" = "30" ]; then
-    echo "  WARNING: SSH 接続タイムアウト"
-    echo "  手動で接続してください:"
+
+  if [ "$i" = "${MAX_WAIT}" ]; then
+    echo "  WARNING: タイムアウト (10分)"
+    echo "  手動で確認してください:"
     echo "    gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
+    echo "    sudo tail -f /var/log/agentbench-startup.log"
     exit 1
   fi
-  echo "  Waiting... (${i}/30)"
+
+  if [ "$RESULT" = "SSH_FAIL" ]; then
+    echo "  SSH 接続待ち... (${i}/${MAX_WAIT})"
+  else
+    echo "  startup script 実行中... (${i}/${MAX_WAIT})"
+  fi
   sleep 10
 done
 
