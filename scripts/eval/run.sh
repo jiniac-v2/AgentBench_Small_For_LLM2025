@@ -18,9 +18,7 @@ set -e
 #            --model "$VLLM_MODEL" --max-model-len 8192 \
 #            --gpu-memory-utilization 0.95
 #
-# このスクリプトは Controller + Worker を起動します。
-# 評価実行は別途手動で:
-#   python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
+# このスクリプトは Controller + Worker を起動し、評価を実行して終了します。
 # ============================================================
 
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
@@ -123,12 +121,14 @@ else
 fi
 
 echo ""
-echo "=== Services ready ==="
+echo "=== Services ready. Running evaluation... ==="
 echo ""
-echo "評価実行 (別ターミナルで):"
-echo "  python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log"
-echo ""
-echo "Ctrl+C でサービスを停止します。"
 
-# Keep running until Ctrl+C
-wait
+mkdir -p outputs
+python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
+EXIT_CODE=${PIPESTATUS[0]}
+
+echo ""
+echo "=== Evaluation finished (exit code: ${EXIT_CODE}) ==="
+echo "Log: outputs/execution.log"
+exit ${EXIT_CODE}
