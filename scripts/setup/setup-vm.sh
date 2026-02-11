@@ -92,6 +92,9 @@ fi
 # 3. Python 依存パッケージ
 # ============================================================
 echo "[4/7] Installing Python dependencies..."
+if ! command -v pip3 &> /dev/null; then
+  apt-get install -y python3-pip
+fi
 pip3 install -r "${APP_DIR}/requirements.txt"
 
 # ============================================================
