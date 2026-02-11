@@ -119,14 +119,26 @@ gcloud services enable secretmanager.googleapis.com     # Secret Manager (privat
 
 #### Step 4: GPU クォータの確認・引き上げ
 
-GPU クォータは新規プロジェクトではデフォルト **0** です。引き上げが必要です。
+GPU クォータは新規プロジェクトではデフォルト **0** です。以下の **2つ** のクォータ引き上げが必要です。
+
+| クォータ名 | 説明 | 確認レベル |
+|---|---|---|
+| `GPUS_ALL_REGIONS` | 全リージョン合計の GPU 数上限 | プロジェクト全体 |
+| `NVIDIA_L4_GPUS` | リージョン別の L4 GPU 数上限 | 使用するリージョン |
 
 **CLI で確認:**
 
 ```bash
-gcloud compute regions describe me-central2 \
-  --project YOUR_PROJECT_ID \
-  --format=json \
+# (A) グローバル GPU クォータ
+gcloud compute project-info describe --project YOUR_PROJECT_ID --format=json \
+  | python3 -c "
+import json, sys
+for q in json.load(sys.stdin).get('quotas', []):
+    if 'GPU' in q.get('metric', ''):
+        print(f\"{q['metric']}: limit={q['limit']}, usage={q['usage']}\")"
+
+# (B) リージョン別 L4 クォータ (YOUR_REGION を使用リージョンに置き換え)
+gcloud compute regions describe YOUR_REGION --project YOUR_PROJECT_ID --format=json \
   | python3 -c "
 import json, sys
 for q in json.load(sys.stdin).get('quotas', []):
@@ -134,29 +146,34 @@ for q in json.load(sys.stdin).get('quotas', []):
         print(f\"{q['metric']}: limit={q['limit']}, usage={q['usage']}\")"
 ```
 
-`NVIDIA_L4_GPUS: limit=1.0` 以上なら OK です。`limit=0.0` なら引き上げが必要です。
+両方とも `limit=1.0` 以上なら OK です。
 
-**コンソールで確認・引き上げ:**
+**コンソールで引き上げ:**
 
 1. [Google Cloud コンソール → IAM と管理 → 割り当て](https://console.cloud.google.com/iam-admin/quotas) を開く
-2. ページ左上の **「割り当てタイプ」ドロップダウンを「すべての割り当て」に変更** する
-   (デフォルトの「使用中の割り当て」だと使用量 0 のクォータが非表示になる)
-3. フィルタ欄で絞り込む:
-   - **サービス**: `Compute Engine API` を選択
-   - **制限名** (Limit Name): `NVIDIA_L4` と入力
-4. 一覧に `NVIDIA_L4_GPUS` が表示される。`me-central2` リージョンの「上限」が **0** なら引き上げが必要
+2. **「割り当てタイプ」→「すべての割り当て」に変更** (使用量 0 のクォータはデフォルト非表示)
+3. 以下の **2つ** を順番に引き上げる:
 
-> ヒットしない場合: フィルタの「リージョン」は指定しないでください。使用量 0 のクォータはリージョン指定すると表示されません。
+**(A) `GPUS_ALL_REGIONS` (グローバル):**
+- フィルタ: **サービス** `Compute Engine API`、**制限名** `GPUS_ALL_REGIONS`
+- チェックボックスオン → **「割り当てを編集」** → 新しい上限 `1`
 
-**引き上げリクエスト:**
+**(B) `NVIDIA_L4_GPUS` (リージョン別):**
+- フィルタ: **サービス** `Compute Engine API`、**制限名** `NVIDIA_L4`
+- 使用するリージョンの行のチェックボックスオン → **「割り当てを編集」** → 新しい上限 `1`
 
-5. 対象のクォータ行のチェックボックスをオンにする
-6. ページ上部の **「割り当てを編集」** をクリック
-7. 右側パネルで **「新しい上限」に `1`** を入力
-8. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
-9. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
+4. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
+5. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
 
 > 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
+
+#### Step 5: 利用可能なゾーンの確認
+
+```bash
+gcloud compute accelerator-types list --filter="name=nvidia-l4" --project YOUR_PROJECT_ID
+```
+
+`terraform.tfvars` の `region` / `zone` は上記で表示されるゾーンから選択してください。
 
 ### 1. VM 構築 (ローカルから一発)
 
