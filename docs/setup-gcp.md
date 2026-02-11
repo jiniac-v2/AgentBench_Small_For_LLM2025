@@ -121,14 +121,50 @@ bash scripts/setup-gcp.sh
 
 完了すると SSH 接続コマンドが表示されます。
 
-## Step 7: SSH 接続
+## Step 7: VM に接続
+
+### 方法 A: コマンドライン (gcloud SSH)
 
 ```bash
-# gcloud SSH
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-
-# または VSCode Remote SSH (IP は setup-gcp.sh の出力に表示)
 ```
+
+### 方法 B: VSCode Remote SSH
+
+#### 1. 拡張機能のインストール
+
+VSCode で以下の拡張機能をインストール:
+- **Remote - SSH** (`ms-vscode-remote.remote-ssh`)
+
+#### 2. SSH 鍵の生成・SSH config の自動設定
+
+```bash
+# gcloud が SSH 鍵を生成し、~/.ssh/config に接続情報を自動追加
+gcloud compute config-ssh --project YOUR_PROJECT_ID
+```
+
+実行すると `~/.ssh/config` に以下のようなエントリが追加されます:
+```
+Host agentbench-eval.YOUR_ZONE.YOUR_PROJECT_ID
+    HostName <外部IP>
+    IdentityFile ~/.ssh/google_compute_engine
+    UserKnownHostsFile ~/.ssh/google_compute_known_hosts
+    ...
+```
+
+> 初回のみ `~/.ssh/google_compute_engine` (秘密鍵) と `~/.ssh/google_compute_engine.pub` (公開鍵) が自動生成されます。
+
+#### 3. VSCode から接続
+
+1. `Cmd + Shift + P` → **Remote-SSH: Connect to Host** を選択
+2. 一覧から `agentbench-eval.YOUR_ZONE.YOUR_PROJECT_ID` を選択
+3. 接続後、左下に `SSH: agentbench-eval...` と表示されれば成功
+
+#### 4. ワークスペースを開く
+
+接続後、**ファイル → フォルダを開く** で `/opt/agentbench` を開くと、VM 上のコードを直接編集できます。
+
+> **VM の IP が変わった場合** (VM 再起動時など): `gcloud compute config-ssh` を再実行して `~/.ssh/config` を更新してください。
 
 環境構築は以上です。評価の実行は [評価実行ガイド](evaluation.md) を参照してください。
 
