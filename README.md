@@ -135,14 +135,16 @@ gcloud compute ssh agentbench-eval --zone me-central2-c --project your-project-i
 VM は一度構築すれば、複数モデルの評価に繰り返し使えます。
 
 ```bash
-# モデル評価
-sudo bash /opt/agentbench/scripts/switch-model.sh Qwen/Qwen2.5-7B-Instruct
+# 1. switch-model.sh を編集してモデル名・HFトークンを設定
+sudo vi /opt/agentbench/scripts/switch-model.sh
 
-# 別モデルに切り替えて再評価
-sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-model
+# ---- ここを編集 ----
+# VLLM_MODEL="your-org/your-model"
+# HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
+# ---------------------
 
-# HuggingFace private モデルの場合（READトークン付き）
-sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-private-model hf_xxxxxxxxxxxxx
+# 2. 実行
+sudo bash /opt/agentbench/scripts/switch-model.sh
 ```
 
 `switch-model.sh` は以下を自動実行します:

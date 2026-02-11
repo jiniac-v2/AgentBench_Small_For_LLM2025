@@ -5,51 +5,36 @@ set -e
 # Model Switch & Evaluation Script
 #
 # Usage:
-#   sudo bash scripts/switch-model.sh <model-name> [hf-token]
+#   1. このファイルの VLLM_MODEL, HF_TOKEN を編集
+#   2. sudo bash /opt/agentbench/scripts/switch-model.sh
 #
-# Examples:
-#   sudo bash scripts/switch-model.sh Qwen/Qwen2.5-7B-Instruct
-#   sudo bash scripts/switch-model.sh your-org/your-model hf_xxxxxxxxxxxxx
-#
-# This script:
-#   1. Updates .env with the new model name (and optional HF token)
-#   2. Updates agent config (api_agents.yaml)
-#   3. Restarts vLLM + all AgentBench services
-#   4. Clears previous outputs
-#   5. Runs the Assigner (evaluation)
+# 処理内容:
+#   1. .env にモデル名・HFトークンを書き込み
+#   2. api_agents.yaml のモデル名を更新
+#   3. vLLM + 全サービスを再起動
+#   4. 前回の出力をクリア
+#   5. Assigner (評価) を実行
 # ============================================================
+
+# ---- ここを編集 ----
+VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
+HF_TOKEN=""
+# ---------------------
 
 APP_DIR="/opt/agentbench"
 
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <model-name> [hf-token]"
-  echo ""
-  echo "Examples:"
-  echo "  $0 Qwen/Qwen2.5-7B-Instruct"
-  echo "  $0 your-org/your-model hf_xxxxxxxxxxxxx"
-  exit 1
-fi
-
-NEW_MODEL="$1"
-HF_TOKEN="${2:-}"
-
-echo "=== Switching to model: ${NEW_MODEL} ==="
+echo "=== Switching to model: ${VLLM_MODEL} ==="
 
 # 1. Update .env
 echo "[1/5] Updating .env..."
-# Read existing HF token if not provided
-if [ -z "$HF_TOKEN" ] && [ -f "${APP_DIR}/.env" ]; then
-  HF_TOKEN=$(grep -oP 'HUGGING_FACE_HUB_TOKEN=\K.*' "${APP_DIR}/.env" 2>/dev/null || echo "")
-fi
-
 cat > "${APP_DIR}/.env" <<EOF
-VLLM_MODEL=${NEW_MODEL}
+VLLM_MODEL=${VLLM_MODEL}
 HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
 EOF
 
 # 2. Update agent config
 echo "[2/5] Updating agent config..."
-sed -i "s|model:.*|model: \"${NEW_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
+sed -i "s|model:.*|model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
 echo "  Agent config:"
 cat "${APP_DIR}/configs/agents/api_agents.yaml"
 
