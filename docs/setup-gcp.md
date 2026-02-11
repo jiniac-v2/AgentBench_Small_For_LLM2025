@@ -329,34 +329,6 @@ cd terraform && terraform destroy
 
 > **注意**: Terraform で作成した場合は `terraform destroy` を推奨します (Service Account, Firewall ルールも合わせて削除されます)。
 
-### サービスの状態確認 (SSH 接続後)
-
-VM に SSH 接続した状態で、AgentBench の各サービスを確認できます。
-
-```bash
-# 全サービスの状態を一覧
-sudo systemctl status agentbench-vllm
-sudo systemctl status agentbench-controller
-sudo systemctl status agentbench-worker-dbbench
-sudo systemctl status agentbench-worker-alfworld
-
-# vLLM コンテナの確認
-sudo docker ps | grep vllm
-
-# 各サービスのログ
-sudo journalctl -u agentbench-vllm -n 50
-sudo journalctl -u agentbench-controller -n 50
-```
-
-### サービスの手動再起動
-
-```bash
-sudo systemctl restart agentbench-vllm
-sudo systemctl restart agentbench-controller
-sudo systemctl restart agentbench-worker-dbbench
-sudo systemctl restart agentbench-worker-alfworld
-```
-
 ---
 
 ## 補足
