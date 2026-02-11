@@ -44,17 +44,8 @@ if [ -z "$PROJECT_ID" ]; then
   exit 1
 fi
 
-# git_repo を自動検出 (tfvars に未設定の場合はローカルの origin から)
-GIT_REPO=$(sed -n 's/.*git_repo[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${TERRAFORM_DIR}/terraform.tfvars" 2>/dev/null)
-if [ -z "$GIT_REPO" ]; then
-  GIT_REPO=$(git -C "${SCRIPT_DIR}" remote get-url origin 2>/dev/null || echo "")
-  GIT_REPO=$(echo "$GIT_REPO" | sed 's|git@github.com:|https://github.com/|')
-  GIT_REPO="${GIT_REPO%.git}"
-fi
-
 echo "Project:  ${PROJECT_ID}"
 echo "Zone:     ${ZONE}"
-echo "Repo:     ${GIT_REPO}"
 echo ""
 
 # ----------------------------------------------------------
@@ -64,8 +55,7 @@ echo "Terraform apply..."
 cd "${TERRAFORM_DIR}"
 terraform init -input=false
 terraform apply -auto-approve \
-  -var="ssh_user=$(whoami)" \
-  -var="git_repo=${GIT_REPO}"
+  -var="ssh_user=$(whoami)"
 
 INSTANCE_IP=$(terraform output -raw instance_ip 2>/dev/null || echo "")
 
