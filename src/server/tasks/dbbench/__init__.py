@@ -66,10 +66,11 @@ class DBBench(Task):
         self.dataset = []
 
         with open(self.data_file) as f:
-            if self.data_file.endswith("json"):
-                data = json.loads(f.read())
-            else:
-                data = [json.loads(line) for line in f.readlines()]
+            content = f.read()
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            data = [json.loads(line) for line in content.splitlines() if line.strip()]
 
         for entry in data:
             if entry["type"][0] in ("INSERT", "DELETE", "UPDATE"):
