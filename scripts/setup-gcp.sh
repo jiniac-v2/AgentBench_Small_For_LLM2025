@@ -88,7 +88,9 @@ for i in $(seq 1 30); do
 done
 
 # ----------------------------------------------------------
-# 4. プロビジョニング完了待ち (VM側でループ、SSH 1回のみ)
+# 4. プロビジョニング完了待ち
+#    google-startup-scripts.service の完了を監視
+#    (マーカーファイルではなく systemd の状態を直接チェック)
 # ----------------------------------------------------------
 echo "[3/3] プロビジョニング完了待ち..."
 echo "  (初回はDocker image pull等で10〜15分程度かかります)"
@@ -97,33 +99,50 @@ echo ""
 # 1回の SSH 接続で VM 側でループ → ログをリアルタイム表示
 gcloud compute ssh agentbench-eval \
   --zone "${ZONE}" --project "${PROJECT_ID}" \
-  --command "
-    for i in \$(seq 1 180); do
-      if [ -f /var/log/agentbench-provisioned ]; then
-        echo ''
-        echo '=========================================='
-        echo ' プロビジョニング完了!'
-        echo '=========================================='
+  --command '
+    for i in $(seq 1 180); do
+      # google-startup-scripts は oneshot: activating=実行中, inactive=完了, failed=失敗
+      STATE=$(systemctl is-active google-startup-scripts 2>/dev/null || echo "unknown")
+
+      if [ "$STATE" = "inactive" ] || [ "$STATE" = "dead" ]; then
+        echo ""
+        echo "=========================================="
+        echo " プロビジョニング完了!"
+        echo "=========================================="
+        # Show final log if available
+        if [ -f /var/log/agentbench-startup.log ]; then
+          echo ""
+          tail -3 /var/log/agentbench-startup.log
+        fi
         exit 0
       fi
-      LOG=\$(tail -1 /var/log/agentbench-startup.log 2>/dev/null || echo '(log not yet available)')
-      echo \"  [\${i}/180] \${LOG}\"
+
+      if [ "$STATE" = "failed" ]; then
+        echo ""
+        echo "ERROR: startup script が失敗しました。"
+        echo "ログを確認してください:"
+        tail -20 /var/log/agentbench-startup.log 2>/dev/null
+        echo ""
+        echo "sudo journalctl -u google-startup-scripts --no-pager"
+        exit 1
+      fi
+
+      # Show latest log line
+      LOG=$(tail -1 /var/log/agentbench-startup.log 2>/dev/null || echo "(startup script running...)")
+      echo "  [${i}/180] ${LOG}"
       sleep 10
     done
-    echo ''
-    echo 'WARNING: プロビジョニングがタイムアウトしました (30分)。'
-    echo 'ログを確認してください:'
-    echo '  cat /var/log/agentbench-startup.log'
-    echo '  sudo journalctl -u google-startup-scripts'
+    echo ""
+    echo "WARNING: プロビジョニングがタイムアウトしました (30分)。"
+    echo "sudo journalctl -u google-startup-scripts -f"
     exit 1
-  "
+  '
 
 if [ $? -ne 0 ]; then
   echo ""
   echo "WARNING: プロビジョニング待ちに失敗しました。"
   echo "SSH で接続してログを確認してください:"
   echo "  gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
-  echo "  cat /var/log/agentbench-startup.log"
   exit 1
 fi
 
