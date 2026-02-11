@@ -1,12 +1,10 @@
-# 評価の実行
+# クラウド評価の実行
 
-実験のたびに実行する手順です。環境構築は済んでいる前提: [ローカル](setup-local.md) / [GCP](setup-gcp.md) + [セットアップスクリプト](setup.md)
+実験のたびに実行する手順です。環境構築は済んでいる前提: [クラウド環境構築](setup.md)
 
 ---
 
 ## Step 1: モデル切替
-
-### GCP 環境
 
 ```bash
 # switch-model.sh を編集してモデル名・HFトークンを設定
@@ -24,26 +22,6 @@ HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
 # モデル切替 (.env + config 更新 → サービス再起動)
 sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
-
-### ローカル環境
-
-```bash
-# .env のモデル名を変更
-vi .env
-```
-
-```bash
-# vLLM を再起動
-docker compose down && docker compose up -d
-```
-
-vLLM が起動するまで待つ:
-
-```bash
-curl http://localhost:8000/v1/models
-```
-
-レスポンスが返れば OK。
 
 ---
 
@@ -87,7 +65,7 @@ python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/e
 ls ~/AgentBench_Small_For_LLM2025/outputs/
 ```
 
-GCP からローカルにコピー:
+ローカルにコピー:
 
 ```bash
 gcloud compute scp --recurse \
@@ -105,4 +83,63 @@ gcloud compute scp --recurse \
 
 ```bash
 pkill -f "src.start_task"
+```
+
+---
+
+## サービスの状態確認・監視
+
+```bash
+# 各サービスの状態
+sudo systemctl status agentbench-vllm
+sudo systemctl status agentbench-controller
+sudo systemctl status agentbench-worker-dbbench
+sudo systemctl status agentbench-worker-alfworld
+
+# vLLM コンテナの確認
+sudo docker ps | grep vllm
+
+# ログの確認
+sudo journalctl -u agentbench-vllm -n 50
+sudo journalctl -u agentbench-controller -n 50
+
+# vLLM のログをリアルタイムで追跡
+sudo journalctl -u agentbench-vllm -f
+```
+
+### サービスの手動再起動
+
+```bash
+sudo systemctl restart agentbench-vllm
+sudo systemctl restart agentbench-controller
+sudo systemctl restart agentbench-worker-dbbench
+sudo systemctl restart agentbench-worker-alfworld
+```
+
+---
+
+## トラブルシューティング
+
+### サービスが起動しない
+
+```bash
+sudo journalctl -u agentbench-<service-name> -n 100
+sudo systemctl restart agentbench-<service-name>
+```
+
+### "0 samples remaining"
+
+前回の結果がキャッシュされています:
+
+```bash
+rm -rf outputs/*
+python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
+```
+
+### vLLM 接続エラー
+
+```bash
+sudo systemctl status agentbench-vllm
+sudo journalctl -u agentbench-vllm -n 50
+docker ps | grep vllm
 ```

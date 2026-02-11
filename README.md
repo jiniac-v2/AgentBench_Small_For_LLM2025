@@ -29,13 +29,19 @@
 
 ## ドキュメント
 
+### ローカル
+
 | ドキュメント | 内容 |
 |---|---|
-| [ローカルマシンの環境構築](docs/setup-local.md) | ローカルマシンの前提条件・リポジトリクローン・vLLM 起動 |
-| [VM の環境構築](docs/setup-gcp.md) | GCP VM の構築・接続・管理 (Terraform + gcloud) |
-| [セットアップスクリプト](docs/setup.md) | ローカル・GCP 共通の環境構築 (setup-vm.sh / setup-systemd.sh) |
-| [評価の実行](docs/runbook.md) | 実験ごとに実行する手順 (モデル切替 → サーバー起動 → 評価) |
-| [評価リファレンス](docs/evaluation.md) | サービス監視・トラブルシューティング |
+| [環境構築](docs/local/setup.md) | ローカルマシンのセットアップ |
+| [評価の実行](docs/local/runbook.md) | ローカル評価の手順 |
+
+### クラウド (GCP)
+
+| ドキュメント | 内容 |
+|---|---|
+| [環境構築](docs/cloud/setup.md) | GCP VM の構築・接続・管理 |
+| [評価の実行](docs/cloud/runbook.md) | クラウド評価の手順・監視・トラブルシューティング |
 
 ## Citation
 

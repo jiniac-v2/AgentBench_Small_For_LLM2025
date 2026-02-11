@@ -1,4 +1,4 @@
-# VM の環境構築 (GCP)
+# クラウド環境構築 (GCP)
 
 ## 前提条件
 
@@ -130,9 +130,49 @@ SSH で VM に接続します。接続方法は2つあります:
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
+## Step 8: セットアップスクリプト
+
+VM 上で以下を実行します。
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+sudo bash scripts/setup/setup-vm.sh
+```
+
+処理内容:
+
+1. Docker Engine のインストール
+2. NVIDIA Container Toolkit のインストール
+3. ユーザーを docker グループに追加
+4. Python 依存パッケージのインストール
+5. `.env` / agent config の生成
+6. Docker イメージの pull (vLLM, MySQL)
+
+完了後、docker グループの反映のため再ログインが必要です:
+
+```bash
+exit
+# SSH で再接続
+gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+```
+
+## Step 9: systemd セットアップ
+
+VM 再起動時に vLLM を自動起動させます。
+
+```bash
+sudo bash scripts/setup/setup-systemd.sh
+```
+
+確認:
+
+```bash
+systemctl status agentbench-vllm
+```
+
 ## 次のステップ
 
-VM に接続したら [セットアップスクリプト](setup.md) に進んでください。
+[クラウド評価の実行](runbook.md) に進んでください。
 
 ---
 
