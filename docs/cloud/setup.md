@@ -145,8 +145,9 @@ sudo bash scripts/setup/setup-vm.sh
 2. NVIDIA Container Toolkit のインストール
 3. ユーザーを docker グループに追加
 4. Python 依存パッケージのインストール
-5. `.env` / agent config の生成
-6. Docker イメージの pull (vLLM, MySQL)
+5. ALFWorld ランタイムデータのリンク (`logic/`, `json_2.1.1/`, `detectors/`)
+6. `.env` / agent config の生成
+7. Docker イメージの pull (vLLM, MySQL)
 
 完了後、docker グループの反映のため再ログインが必要です:
 

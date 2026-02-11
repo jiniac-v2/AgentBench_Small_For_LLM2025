@@ -149,6 +149,19 @@ rm -rf outputs/*
 python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
 ```
 
+### ALFWorld: `FileNotFoundError: data/alfworld/logic/alfred.pddl`
+
+alfworld パッケージのランタイムデータがリンクされていません。セットアップスクリプト (`setup-vm.sh`) を再実行するか、手動でリンクを作成してください:
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))")
+for subdir in logic json_2.1.1 detectors; do
+  [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "data/alfworld/${subdir}" ] && \
+    ln -s "${ALFWORLD_PKG_DATA}/${subdir}" "data/alfworld/${subdir}"
+done
+```
+
 ### vLLM 接続エラー
 
 ```bash
