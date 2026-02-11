@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    alfworld-std: 5
+  agent:
+    vllm-model: 5
+
+assignments:
+  - agent:
+      - vllm-model
+    task:
+      - alfworld-std
+
+output: "outputs/{TIMESTAMP}"

@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    dbbench-std: 1
+  agent:
+    vllm-model: 5
+
+assignments:
+  - agent:
+      - vllm-model
+    task:
+      - dbbench-std
+
+output: "outputs/{TIMESTAMP}"
