@@ -34,20 +34,44 @@ bash scripts/eval/run.sh
 
 ## 評価実行
 
-ローカル・GCP 共通です。
+ローカル・GCP 共通です。2 つのターミナルを使います。
+
+### ターミナル 1: タスクサーバー起動
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+python3 -m src.start_task -a
+```
+
+Controller と Workers がすべて起動するまで待ちます（`Worker registered` のログが出れば OK）。
+**このターミナルは閉じずにそのまま維持してください。**
+
+### ターミナル 2: 評価の実行（別ターミナルを開く）
+
+新しいターミナルを開き、以下を実行します。
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
 ```
 
-結果は `outputs/` に出力されます。
+実行ログは `outputs/execution.log` に保存されます。
+結果は `outputs/` 以下に出力されます。
 
 ### 前回の結果をクリアして再実行
 
 ```bash
 rm -rf outputs/*
 python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
+```
+
+### タスクサーバーの停止
+
+評価が完了したら、ターミナル 1 で `Ctrl+C` を押してサーバーを停止します。
+リモート接続で `Ctrl+C` が効かない場合は、別ターミナルから以下で停止できます:
+
+```bash
+pkill -f "src.start_task"
 ```
 
 ---
