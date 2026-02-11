@@ -52,4 +52,4 @@ bash scripts/run.sh
 3. Controller 起動 (port 5020)
 4. Worker 起動 (DBBench: port 5023, ALFWorld: port 5021)
 
-サービスが起動したら、評価の実行は [評価実行](evaluation.md) を参照してください。
+サービスが起動したら [評価実行](evaluation.md) を参照してください。

@@ -136,10 +136,221 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh
 4. Docker イメージの pull (vLLM, MySQL)
 5. systemd サービスのインストール・起動
 
-環境構築は以上です。次のステップ:
-- [評価実行](evaluation.md) — モデル切替・評価の実行
-- [VM 接続方法](vm-connection.md) — SSH / VSCode での接続
-- [VM の確認・起動・停止](vm-management.md) — VM の状態管理
+---
+
+## VM 接続方法
+
+### 方法 A: コマンドライン (gcloud SSH)
+
+```bash
+gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+```
+
+### 方法 B: VSCode Remote - SSH (推奨)
+
+VSCode の **Remote - SSH** 拡張機能で VM に接続し、エクスプローラー・ターミナル・拡張機能などフル IDE 機能をリモートで利用できます。
+
+#### 前提
+
+- gcloud CLI がインストール済み・認証済み (`gcloud auth login`)
+- VSCode 拡張機能:
+  - **Remote - SSH** (`ms-vscode-remote.remote-ssh`) — VM への接続・リモート開発
+  - **Cloud Code** (`GoogleCloudTools.cloudcode`) — VM の状態確認 (任意)
+
+#### SSH config の自動生成
+
+`gcloud compute config-ssh` を実行すると、プロジェクト内の全 VM に対する SSH 設定が `~/.ssh/config` に自動追記されます。
+
+```bash
+gcloud compute config-ssh
+```
+
+`gcloud auth login` で認証済みであれば、プロジェクトの VM を自動検出し、SSH config (`~/.ssh/config`) と鍵ペア (`~/.ssh/google_compute_engine`) を生成します。
+
+成功すると以下のように表示されます:
+
+```
+You should now be able to use ssh/scp with your instances.
+For example, try running:
+
+  $ ssh agentbench-eval.asia-northeast1-a.YOUR_PROJECT_ID
+```
+
+> VM の外部 IP が変わった場合 (停止→起動後など) は、再度 `gcloud compute config-ssh` を実行してください。
+
+#### VSCode から接続
+
+**コマンドパレットから:**
+
+1. `Cmd+Shift+P` (Mac) / `Ctrl+Shift+P` (Windows/Linux)
+2. **Remote-SSH: Connect to Host...** を選択
+3. `agentbench-eval.ZONE.PROJECT_ID` を選択
+
+**左下のリモートアイコンから:**
+
+1. VSCode 左下の **緑色の `><` アイコン** をクリック
+2. **ホストに接続する (Connect to Host...)** を選択
+3. `agentbench-eval.ZONE.PROJECT_ID` を選択
+
+**リモートエクスプローラーから:**
+
+1. 左サイドバーの **リモートエクスプローラー** アイコン (モニターのアイコン) をクリック
+2. ドロップダウンで **SSH ターゲット (Remotes (SSH))** を選択
+3. `agentbench-eval.ZONE.PROJECT_ID` が一覧に表示される
+4. ホスト名の右にある **→ アイコン** (Connect in Current Window) をクリック
+
+いずれの方法でも、新しい VSCode ウィンドウが開き VM に接続されます。
+
+#### リモート開発
+
+接続が完了すると、VSCode がリモート VM 上で動作するモードになります。
+ローカル開発と同じ操作感で VM 上のファイルを扱えます。
+
+- **フォルダを開く**: **ファイル → フォルダを開く** → `~/AgentBench_Small_For_LLM2025` を指定
+- **エクスプローラー**: 左サイドバーでファイルツリーを閲覧・操作
+- **ファイル編集**: 通常どおりコードを編集・保存 (変更は即座に VM に反映)
+- **ターミナル**: `` Ctrl+` `` で VM 上のシェルを直接操作
+- **拡張機能**: Python 等の拡張機能はリモート側にインストールされ、VM 上で実行される
+- **Git**: ソース管理タブで VM 上のリポジトリを操作可能
+
+#### SSH config の削除
+
+不要になったら自動生成された設定を削除できます:
+
+```bash
+gcloud compute config-ssh --remove
+```
+
+### 補足: Cloud Code で VM の状態を確認する
+
+Cloud Code 拡張機能をインストールすると、VSCode のサイドバーから VM の状態 (実行中・停止中など) を GUI で確認できます。
+
+1. 左サイドバーの **Cloud Code アイコン** をクリック
+2. **Compute Engine** セクションを展開
+3. プロジェクトを選択すると、VM の一覧と状態が表示される
+
+> Cloud Code は VM の状態確認用です。VM への接続・リモート開発には上記の **Remote - SSH** を使用してください。
+
+---
+
+## VM の管理
+
+### VM の状態確認
+
+**CLI:**
+
+```bash
+# VM の状態を確認
+gcloud compute instances describe agentbench-eval \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID \
+  --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
+```
+
+出力例:
+```
+NAME             STATUS   NAT_IP
+agentbench-eval  RUNNING  34.xxx.xxx.xxx
+```
+
+| STATUS | 意味 |
+|---|---|
+| `RUNNING` | 起動中 (課金中) |
+| `TERMINATED` | 停止中 (ディスク課金のみ) |
+| `STAGING` | 起動準備中 |
+| `SUSPENDED` | サスペンド中 |
+
+```bash
+# プロジェクト内の全 VM を一覧
+gcloud compute instances list --project YOUR_PROJECT_ID
+```
+
+**コンソール:**
+
+1. [Compute Engine → VM インスタンス](https://console.cloud.google.com/compute/instances) を開く
+2. `agentbench-eval` の行に状態 (緑チェック = 起動中) と外部 IP が表示される
+
+### VM の停止
+
+GPU VM は起動中は課金されます。使わない間は停止してください。
+
+**CLI:**
+
+```bash
+gcloud compute instances stop agentbench-eval \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID
+```
+
+**コンソール:**
+
+1. [Compute Engine → VM インスタンス](https://console.cloud.google.com/compute/instances) を開く
+2. `agentbench-eval` のチェックボックスをオン
+3. ページ上部の **「停止」** ボタンをクリック
+
+> 停止中はディスク (200GB pd-balanced) の料金のみ発生します。GPU・CPU 料金は発生しません。
+
+### VM の起動
+
+**CLI:**
+
+```bash
+gcloud compute instances start agentbench-eval \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID
+```
+
+**コンソール:**
+
+1. [Compute Engine → VM インスタンス](https://console.cloud.google.com/compute/instances) を開く
+2. `agentbench-eval` のチェックボックスをオン
+3. ページ上部の **「起動」** ボタンをクリック
+
+> 起動後、systemd が自動でインフラサービス (vLLM, Controller, Worker) を開始します。startup.sh はプロビジョニング済みの場合何もしません。
+> **注意**: 停止→起動で外部 IP が変わるため、VSCode Remote SSH を使う場合は `gcloud compute config-ssh` を再実行してください。
+
+### VM の削除
+
+VM とディスクを完全に削除します（課金が完全に停止します）。
+
+**CLI (Terraform):**
+
+```bash
+cd terraform && terraform destroy
+```
+
+**コンソール:**
+
+1. [Compute Engine → VM インスタンス](https://console.cloud.google.com/compute/instances) を開く
+2. `agentbench-eval` のチェックボックスをオン
+3. ページ上部の **「削除」** ボタンをクリック
+
+> **注意**: Terraform で作成した場合は `terraform destroy` を推奨します (Service Account, Firewall ルールも合わせて削除されます)。
+
+### サービスの状態確認 (SSH 接続後)
+
+VM に SSH 接続した状態で、AgentBench の各サービスを確認できます。
+
+```bash
+# 全サービスの状態を一覧
+sudo systemctl status agentbench-vllm
+sudo systemctl status agentbench-controller
+sudo systemctl status agentbench-worker-dbbench
+sudo systemctl status agentbench-worker-alfworld
+
+# vLLM コンテナの確認
+sudo docker ps | grep vllm
+
+# 各サービスのログ
+sudo journalctl -u agentbench-vllm -n 50
+sudo journalctl -u agentbench-controller -n 50
+```
+
+### サービスの手動再起動
+
+```bash
+sudo systemctl restart agentbench-vllm
+sudo systemctl restart agentbench-controller
+sudo systemctl restart agentbench-worker-dbbench
+sudo systemctl restart agentbench-worker-alfworld
+```
 
 ---
 
