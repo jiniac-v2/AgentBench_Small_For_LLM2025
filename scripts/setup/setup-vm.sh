@@ -138,20 +138,17 @@ for f in "${APP_DIR}/systemd/"*.service; do
 done
 systemctl daemon-reload
 
-# enable (自動起動登録) だけ先にやる
-systemctl enable agentbench-vllm
-systemctl enable agentbench-controller
-systemctl enable agentbench-worker-dbbench
-systemctl enable agentbench-worker-alfworld
+# enable + start (--no-block で非同期起動)
+# 依存関係: vLLM → Controller (health check 待ち) → Workers
+# Restart=always なので controller は vLLM 準備完了まで自動リトライする
+systemctl enable --now agentbench-vllm
+systemctl enable --now --no-block agentbench-controller
+systemctl enable --now --no-block agentbench-worker-dbbench
+systemctl enable --now --no-block agentbench-worker-alfworld
 
-# 順番に起動: vLLM → controller → workers
-# systemd の依存関係 (After/Requires) で順番が保証される
-echo "  Starting services (vLLM → Controller → Workers)..."
-echo "  vLLM のモデルロードに数分かかります。"
-systemctl start agentbench-vllm
-systemctl start agentbench-controller
-systemctl start agentbench-worker-dbbench agentbench-worker-alfworld
-echo "  All services started."
+echo "  サービスを起動しました。"
+echo "  vLLM のモデルロード完了後、Controller → Workers が順次起動します。"
+echo "  確認: sudo journalctl -u agentbench-vllm -f"
 
 # ============================================================
 # 完了
