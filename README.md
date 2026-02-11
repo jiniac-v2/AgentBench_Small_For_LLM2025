@@ -31,9 +31,10 @@
 
 | ドキュメント | 内容 |
 |---|---|
-| [ローカル環境構築](docs/setup-local.md) | ローカル環境での Python + Docker セットアップ |
-| [GCP環境構築](docs/setup-gcp.md) | GCP VM の構築・接続・管理 (Terraform + gcloud) |
-| [実験手順 (Runbook)](docs/runbook.md) | 実験ごとに実行する手順 (モデル切替 → サーバー起動 → 評価) |
+| [ローカルマシンの環境構築](docs/setup-local.md) | ローカルマシンの前提条件・リポジトリクローン・vLLM 起動 |
+| [VM の環境構築](docs/setup-gcp.md) | GCP VM の構築・接続・管理 (Terraform + gcloud) |
+| [セットアップスクリプト](docs/setup.md) | ローカル・GCP 共通の環境構築 (setup-vm.sh / setup-systemd.sh) |
+| [評価の実行](docs/runbook.md) | 実験ごとに実行する手順 (モデル切替 → サーバー起動 → 評価) |
 | [評価リファレンス](docs/evaluation.md) | サービス監視・トラブルシューティング |
 
 ## Citation

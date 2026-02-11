@@ -1,6 +1,6 @@
-# 実験手順 (Runbook)
+# 評価の実行
 
-実験のたびに実行する手順です。環境構築は済んでいる前提: [ローカル](setup-local.md) / [GCP](setup-gcp.md)
+実験のたびに実行する手順です。環境構築は済んでいる前提: [ローカル](setup-local.md) / [GCP](setup-gcp.md) + [セットアップスクリプト](setup.md)
 
 ---
 

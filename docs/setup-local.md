@@ -1,4 +1,4 @@
-# 環境構築: ローカル
+# ローカルマシンの環境構築
 
 ## 前提条件
 
@@ -6,21 +6,11 @@
 - Docker (GPU 対応)
 - NVIDIA GPU + ドライバ
 
-## 1. リポジトリのクローン・依存関係
+## 1. リポジトリのクローン
 
 ```bash
 git clone https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git
 cd AgentBench_Small_For_LLM2025
-
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Docker が動作していることを確認:
-
-```bash
-docker ps
-docker pull mysql:9.5.0
 ```
 
 ## 2. vLLM 起動
@@ -39,17 +29,6 @@ docker run --rm --gpus all --ipc=host -p 8000:8000 \
   --gpu-memory-utilization 0.95
 ```
 
-## 3. サービス起動
+## 次のステップ
 
-```bash
-export VLLM_MODEL="Qwen/Qwen2.5-7B-Instruct"
-bash scripts/eval/run.sh
-```
-
-`run.sh` は以下を実行します:
-1. agent config にモデル名を展開
-2. vLLM 推論テスト
-3. Controller 起動 (port 5020)
-4. Worker 起動 (DBBench: port 5023, ALFWorld: port 5021)
-
-サービスが起動したら [実験手順 (Runbook)](runbook.md) を参照してください。
+[セットアップスクリプト](setup.md) に進んでください（systemd は不要です）。

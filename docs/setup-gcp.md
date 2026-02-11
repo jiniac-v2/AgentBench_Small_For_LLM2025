@@ -1,4 +1,4 @@
-# 環境構築: GCP
+# VM の環境構築 (GCP)
 
 ## 前提条件
 
@@ -117,9 +117,9 @@ bash scripts/infra/setup-gcp.sh
 1. `terraform apply` (VM 作成)
 2. startup script が自動で clone (private リポの場合は Secret Manager の PAT を使用)
 
-## Step 7: VM 環境構築
+## Step 7: VM に接続
 
-SSH で VM に接続し、環境構築スクリプトを実行します。接続方法は2つあります:
+SSH で VM に接続します。接続方法は2つあります:
 
 - **方法 A**: `gcloud compute ssh` コマンド（すぐ使える）
 - **方法 B**: VSCode Remote - SSH（IDE 機能をフル活用したい場合）
@@ -127,21 +127,12 @@ SSH で VM に接続し、環境構築スクリプトを実行します。接続
 詳細は [VM 接続方法](#vm-接続方法) を参照してください。ここでは方法 A で進めます。
 
 ```bash
-# SSH 接続
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-
-# 環境構築 (VM 上で実行)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
 ```
 
-`setup-vm.sh` は以下を実行します:
-1. Docker Engine のインストール
-2. NVIDIA Container Toolkit のインストール
-3. docker グループ設定
-4. Python 依存パッケージのインストール
-5. `.env` / agent config の生成
-6. Docker イメージの pull (vLLM, MySQL)
-5. systemd サービスのインストール・起動
+## 次のステップ
+
+VM に接続したら [セットアップスクリプト](setup.md) に進んでください。
 
 ---
 
