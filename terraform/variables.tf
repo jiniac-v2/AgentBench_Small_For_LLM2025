@@ -6,13 +6,15 @@ variable "project_id" {
 variable "region" {
   description = "GCP region"
   type        = string
-  default     = "me-central2"
+  # me-central2 を使いたいが LOCATION_POLICY_VIOLATED で利用不可のため asia-northeast1 をデフォルトにする
+  default     = "asia-northeast1"
 }
 
 variable "zone" {
   description = "GCP zone"
   type        = string
-  default     = "me-central2-c"
+  # me-central2-c を使いたいが同上
+  default     = "asia-northeast1-a"
 }
 
 variable "machine_type" {

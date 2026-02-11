@@ -39,7 +39,7 @@ fi
 # terraform.tfvars から project_id と zone を読み取り (macOS 互換)
 PROJECT_ID=$(sed -n 's/.*project_id[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${TERRAFORM_DIR}/terraform.tfvars" 2>/dev/null)
 ZONE=$(sed -n 's/.*zone[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "${TERRAFORM_DIR}/terraform.tfvars" 2>/dev/null)
-ZONE="${ZONE:-me-central2-c}"
+ZONE="${ZONE:-asia-northeast1-a}"
 
 if [ -z "$PROJECT_ID" ]; then
   echo "ERROR: terraform.tfvars に project_id が設定されていません"
