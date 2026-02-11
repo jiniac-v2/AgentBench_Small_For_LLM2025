@@ -12,12 +12,13 @@ set -e
 #   - SSH 接続済み
 #
 # 処理内容:
-#   1. Docker / NVIDIA Container Toolkit の確認
-#   2. ユーザーを docker グループに追加
-#   3. Python 依存パッケージのインストール
-#   4. .env / agent config の生成
-#   5. Docker イメージの pull
-#   6. systemd サービスのインストール・起動
+#   1. Docker Engine のインストール
+#   2. NVIDIA Container Toolkit のインストール
+#   3. ユーザーを docker グループに追加
+#   4. Python 依存パッケージのインストール
+#   5. .env / agent config の生成
+#   6. Docker イメージの pull
+#   7. systemd サービスのインストール・起動
 # ============================================================
 
 # ---- 設定 ----
@@ -38,21 +39,47 @@ echo "VLLM_MODEL: ${VLLM_MODEL}"
 echo ""
 
 # ============================================================
-# 1. Docker の確認
+# 1. Docker Engine
 # ============================================================
-echo "[1/6] Checking Docker..."
+echo "[1/7] Installing Docker Engine..."
 if ! command -v docker &> /dev/null; then
-  echo "  ERROR: Docker is not installed."
-  echo "  startup script がまだ完了していない可能性があります。"
-  echo "  確認: sudo journalctl -u google-startup-scripts --no-pager"
-  exit 1
+  apt-get update
+  apt-get install -y ca-certificates curl gnupg
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  apt-get update
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  systemctl enable --now docker
+  echo "  Docker installed."
+else
+  echo "  Docker already installed: $(docker --version)"
 fi
-echo "  Docker OK: $(docker --version)"
 
 # ============================================================
-# 2. ユーザーを docker グループに追加
+# 2. NVIDIA Container Toolkit
 # ============================================================
-echo "[2/6] Configuring docker group..."
+echo "[2/7] Installing NVIDIA Container Toolkit..."
+if ! dpkg -l | grep -q nvidia-container-toolkit; then
+  curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+    | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+  curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  apt-get update && apt-get install -y nvidia-container-toolkit
+  nvidia-ctk runtime configure --runtime=docker
+  systemctl restart docker
+  echo "  NVIDIA Container Toolkit installed."
+else
+  echo "  NVIDIA Container Toolkit already installed."
+fi
+
+# ============================================================
+# 3. ユーザーを docker グループに追加
+# ============================================================
+echo "[3/7] Configuring docker group..."
 if ! groups "$ACTUAL_USER" | grep -q docker; then
   usermod -aG docker "$ACTUAL_USER"
   echo "  Added ${ACTUAL_USER} to docker group."
@@ -64,13 +91,13 @@ fi
 # ============================================================
 # 3. Python 依存パッケージ
 # ============================================================
-echo "[3/6] Installing Python dependencies..."
+echo "[4/7] Installing Python dependencies..."
 pip3 install -r "${APP_DIR}/requirements.txt"
 
 # ============================================================
 # 4. .env / agent config の生成
 # ============================================================
-echo "[4/6] Generating configuration..."
+echo "[5/7] Generating configuration..."
 
 cat > "${APP_DIR}/.env" <<EOF
 VLLM_MODEL=${VLLM_MODEL}
@@ -90,7 +117,7 @@ cat "${APP_DIR}/configs/agents/api_agents.yaml"
 # ============================================================
 # 5. Docker イメージの pull
 # ============================================================
-echo "[5/6] Pulling Docker images..."
+echo "[6/7] Pulling Docker images..."
 docker pull mysql:9.5.0 &
 docker pull vllm/vllm-openai:v0.13.0 &
 wait
@@ -99,7 +126,7 @@ echo "  Docker images pulled."
 # ============================================================
 # 6. systemd サービスのインストール・起動
 # ============================================================
-echo "[6/6] Installing systemd services..."
+echo "[7/7] Installing systemd services..."
 
 # /opt/agentbench プレースホルダーを実際の APP_DIR に置換してコピー
 for f in "${APP_DIR}/systemd/"*.service; do
