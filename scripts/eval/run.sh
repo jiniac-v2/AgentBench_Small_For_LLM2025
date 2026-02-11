@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-# AgentBench 評価実行スクリプト
+# AgentBench タスクサーバー起動スクリプト
 #
 # Usage:
 #   bash scripts/eval/run.sh
@@ -14,35 +14,25 @@ set -e
 # 処理内容:
 #   1. agent config のモデル名を設定
 #   2. vLLM の疎通確認
-#   3. Controller + Workers を起動 (start_task -a)
-#   4. Assigner で評価実行
-#   5. 完了後に全プロセスをクリーンアップ
+#   3. Controller + Workers を起動し、全 worker の登録を確認
+#
+# 評価の実行は手動で:
+#   python3 -m src.assigner -c configs/assignments/default.yaml
 # ============================================================
 
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
-PIDS=()
 
-cleanup() {
-  echo ""
-  echo "Cleaning up..."
-  for pid in "${PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true
-  done
-  wait 2>/dev/null || true
-}
-trap cleanup EXIT
-
-echo "=== AgentBench Evaluation ==="
+echo "=== AgentBench Task Server ==="
 echo "Model: ${VLLM_MODEL}"
 
 # 1. agent config のモデル名を設定
-echo "[1/4] Configuring agent for model: ${VLLM_MODEL}"
+echo "[1/3] Configuring agent for model: ${VLLM_MODEL}"
 sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" configs/agents/api_agents.yaml
 sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" configs/agents/api_agents.yaml
 cat configs/agents/api_agents.yaml
 
 # 2. vLLM の疎通確認
-echo "[2/4] Checking vLLM..."
+echo "[2/3] Checking vLLM..."
 
 # systemd サービスが存在すればプロセス状態を確認
 if systemctl is-active agentbench-vllm &>/dev/null; then
@@ -71,11 +61,10 @@ for i in $(seq 1 60); do
 done
 
 # 3. Controller + Workers を起動
-echo "[3/4] Starting Controller + Workers..."
+echo "[3/3] Starting Controller + Workers..."
 # start_task.py は while True: input() で待機する設計なので
 # バックグラウンド実行時は stdin を開いたままにする
 tail -f /dev/null | python3 -m src.start_task -a &
-PIDS+=($!)
 
 # Workers の登録待ち
 echo "  Waiting for all workers to register..."
@@ -98,15 +87,9 @@ assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
   sleep 2
 done
 
-# 4. 評価実行
-echo "[4/4] Running evaluation..."
 echo ""
-
-mkdir -p outputs
-python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
-EXIT_CODE=${PIPESTATUS[0]}
-
+echo "=== Task server ready ==="
+echo "Controller: http://localhost:5000"
 echo ""
-echo "=== Evaluation finished (exit code: ${EXIT_CODE}) ==="
-echo "Log: outputs/execution.log"
-exit ${EXIT_CODE}
+echo "To run evaluation:"
+echo "  python3 -m src.assigner -c configs/assignments/default.yaml"
