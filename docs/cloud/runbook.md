@@ -29,7 +29,7 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-sudo -E bash scripts/eval/run.sh
+sudo -E bash scripts/eval/task_server_run.sh
 ```
 
 スクリプトが以下を自動で行います:
@@ -69,7 +69,7 @@ ALFWorld / DBBench を個別に動かしたい場合は、`--config` でデバ�
 
 ```bash
 # タスクサーバー
-sudo -E bash scripts/eval/run.sh --config configs/start_task_alf.yaml
+sudo -E bash scripts/eval/task_server_run.sh --config configs/start_task_alf.yaml
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
@@ -79,7 +79,7 @@ python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs
 
 ```bash
 # タスクサーバー
-sudo -E bash scripts/eval/run.sh --config configs/start_task_db.yaml
+sudo -E bash scripts/eval/task_server_run.sh --config configs/start_task_db.yaml
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
@@ -106,7 +106,7 @@ gcloud compute scp --recurse \
 ## Step 5: タスクサーバー停止
 
 ```bash
-bash scripts/eval/run.sh stop
+bash scripts/eval/task_server_run.sh stop
 ```
 
 5000 番台のポートを使っているプロセスをすべて停止します。

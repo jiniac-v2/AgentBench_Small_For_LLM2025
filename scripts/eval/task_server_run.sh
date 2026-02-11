@@ -5,10 +5,10 @@ set -e
 # AgentBench タスクサーバー起動スクリプト
 #
 # Usage:
-#   sudo -E bash scripts/eval/run.sh                              # 全タスク起動
-#   sudo -E bash scripts/eval/run.sh --config configs/start_task_alf.yaml  # ALF だけ
-#   sudo -E bash scripts/eval/run.sh --config configs/start_task_db.yaml   # DB だけ
-#   bash scripts/eval/run.sh stop                                 # サーバー停止
+#   sudo -E bash scripts/eval/task_server_run.sh                              # 全タスク起動
+#   sudo -E bash scripts/eval/task_server_run.sh --config configs/start_task_alf.yaml  # ALF だけ
+#   sudo -E bash scripts/eval/task_server_run.sh --config configs/start_task_db.yaml   # DB だけ
+#   bash scripts/eval/task_server_run.sh stop                                 # サーバー停止
 #
 # 処理内容:
 #   1. 5000 番台のポートを使用中のプロセスを停止 (前回の残骸を掃除)
@@ -127,7 +127,7 @@ if $CHECK_OK; then
   echo "  python3 -m src.assigner -c configs/assignments/default.yaml"
   echo ""
   echo "Stop server:"
-  echo "  bash scripts/eval/run.sh stop"
+  echo "  bash scripts/eval/task_server_run.sh stop"
   exit 0
 else
   echo "=== Startup FAILED — stopping server ==="
