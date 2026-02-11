@@ -25,22 +25,23 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ---
 
-## Step 2: タスクサーバー起動 (ターミナル 1)
+## Step 2: タスクサーバー起動
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-sudo -E python3 -m src.start_task -a 
+sudo -E bash scripts/eval/run.sh
 ```
 
-Controller と Workers がすべて起動するまで待つ（`Worker registered` のログが出れば OK）。
+スクリプトが以下を自動で行います:
+1. 5000 番台のポートに残っているプロセスを停止（前回の残骸を掃除）
+2. vLLM の疎通確認
+3. Controller + Workers をバックグラウンド起動し、worker 登録を確認
 
-**このターミナルは閉じずにそのまま維持する。**
+`Task server ready` と表示されれば OK です。
 
 ---
 
-## Step 3: 評価実行 (ターミナル 2 — 別ターミナルを開く)
-
-新しいターミナルを開いて以下を実行:
+## Step 3: 評価実行
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
@@ -61,26 +62,26 @@ python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/e
 
 ## デバッグ: 単一タスクだけ実行する
 
-ALFWorld / DBBench を個別に動かしたい場合は、専用のデバッグ用設定を使います。
+ALFWorld / DBBench を個別に動かしたい場合は、`--config` でデバッグ用設定を指定します。
 同時実行数は通常実行と同じです（ALF: 5並列, DB: 1並列, エージェント: 5並列）。
 
 ### ALFWorld だけ
 
 ```bash
-# ターミナル 1: タスクサーバー
-sudo -E python3 -m src.start_task -a --config configs/start_task_alf.yaml
+# タスクサーバー
+sudo -E bash scripts/eval/run.sh --config configs/start_task_alf.yaml
 
-# ターミナル 2: アサイナー
+# アサイナー
 python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
 ```
 
 ### DBBench だけ
 
 ```bash
-# ターミナル 1: タスクサーバー
-sudo -E python3 -m src.start_task -a --config configs/start_task_db.yaml
+# タスクサーバー
+sudo -E bash scripts/eval/run.sh --config configs/start_task_db.yaml
 
-# ターミナル 2: アサイナー
+# アサイナー
 python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
 ```
 
@@ -104,13 +105,11 @@ gcloud compute scp --recurse \
 
 ## Step 5: タスクサーバー停止
 
-ターミナル 1 で `Ctrl+C` を押す。
-
-リモート接続で `Ctrl+C` が効かない場合は、別ターミナルから:
-
 ```bash
-pkill -f "src.start_task"
+bash scripts/eval/run.sh stop
 ```
+
+5000 番台のポートを使っているプロセスをすべて停止します。
 
 ---
 

@@ -5,109 +5,116 @@ set -e
 # AgentBench タスクサーバー起動スクリプト
 #
 # Usage:
-#   bash scripts/eval/run.sh        # サーバー起動 + worker 登録確認
-#   bash scripts/eval/run.sh stop   # サーバー停止
-#
-# Prerequisites:
-#   - vLLM が localhost:8000 で稼働中 (systemd or docker compose)
-#   - Python 依存パッケージインストール済み (setup-vm.sh)
+#   sudo -E bash scripts/eval/run.sh                              # 全タスク起動
+#   sudo -E bash scripts/eval/run.sh --config configs/start_task_alf.yaml  # ALF だけ
+#   sudo -E bash scripts/eval/run.sh --config configs/start_task_db.yaml   # DB だけ
+#   bash scripts/eval/run.sh stop                                 # サーバー停止
 #
 # 処理内容:
-#   1. agent config のモデル名を設定
+#   1. 5000 番台のポートを使用中のプロセスを停止 (前回の残骸を掃除)
 #   2. vLLM の疎通確認
-#   3. Controller + Workers をバックグラウンド起動し、worker 登録を確認
-#   成功したらサーバーは動いたままスクリプト終了。
-#   失敗したらサーバーを停止して exit 1。
-#
-# 評価の実行:
-#   python3 -m src.assigner -c configs/assignments/default.yaml
-#
-# サーバーの停止:
-#   bash scripts/eval/run.sh stop
+#   3. Controller + Workers を起動し worker 登録を確認
 # ============================================================
 
 PIDFILE="/tmp/agentbench-server.pid"
-VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
+PORT_RANGE_START=5000
+PORT_RANGE_END=5010
+
+# --- ポートクリーンアップ ---
+cleanup_ports() {
+  echo "Cleaning up ports ${PORT_RANGE_START}-${PORT_RANGE_END}..."
+  local found=false
+  for port in $(seq "$PORT_RANGE_START" "$PORT_RANGE_END"); do
+    pids=$(lsof -ti :"$port" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+      found=true
+      echo "  Port ${port}: killing PIDs ${pids}"
+      echo "$pids" | xargs kill 2>/dev/null || true
+    fi
+  done
+  if $found; then
+    sleep 1
+    # SIGKILL for stubborn processes
+    for port in $(seq "$PORT_RANGE_START" "$PORT_RANGE_END"); do
+      pids=$(lsof -ti :"$port" 2>/dev/null || true)
+      if [ -n "$pids" ]; then
+        echo "  Port ${port}: force killing PIDs ${pids}"
+        echo "$pids" | xargs kill -9 2>/dev/null || true
+      fi
+    done
+    sleep 0.5
+  fi
+  rm -f "$PIDFILE"
+  echo "  Ports clean."
+}
 
 # --- stop サブコマンド ---
 if [ "${1:-}" = "stop" ]; then
-  if [ -f "$PIDFILE" ]; then
-    PID=$(cat "$PIDFILE")
-    echo "Stopping AgentBench server (PID: $PID)..."
-    kill "$PID" 2>/dev/null || true
-    wait "$PID" 2>/dev/null || true
-    rm -f "$PIDFILE"
-    echo "Stopped."
-  else
-    echo "No PID file found ($PIDFILE). Server may not be running."
-  fi
+  echo "=== Stopping AgentBench Task Server ==="
+  cleanup_ports
+  echo "Stopped."
   exit 0
 fi
 
+# --- 引数パース ---
+CONFIG="configs/start_task.yaml"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --config) CONFIG="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$APP_DIR"
+
 echo "=== AgentBench Task Server ==="
-echo "Model: ${VLLM_MODEL}"
+echo "Config: ${CONFIG}"
 
-# 1. agent config のモデル名を設定
-echo "[1/3] Configuring agent for model: ${VLLM_MODEL}"
-sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" configs/agents/api_agents.yaml
-sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" configs/agents/api_agents.yaml
-cat configs/agents/api_agents.yaml
+# --- 1. ポートクリーンアップ ---
+echo "[1/3] Checking ports..."
+cleanup_ports
 
-# 2. vLLM の疎通確認
+# --- 2. vLLM 疎通確認 ---
 echo "[2/3] Checking vLLM..."
-
-# systemd サービスが存在すればプロセス状態を確認
-if systemctl is-active agentbench-vllm &>/dev/null; then
-  echo "  systemd: agentbench-vllm is active"
-elif systemctl list-unit-files agentbench-vllm.service &>/dev/null 2>&1; then
-  echo "  ERROR: agentbench-vllm service exists but is not running"
-  echo "  Run: sudo journalctl -u agentbench-vllm -n 20"
-  exit 1
-fi
-
-# /v1/models で API の応答を待つ (軽量エンドポイント)
 for i in $(seq 1 60); do
   if curl -sf http://localhost:8000/v1/models -o /dev/null 2>/dev/null; then
-    echo "  vLLM API ready (localhost:8000)"
-    # モデル名の確認
     MODELS=$(curl -sf http://localhost:8000/v1/models 2>/dev/null || echo "")
-    echo "  Loaded models: $(echo "$MODELS" | python3 -c 'import sys,json; [print(m["id"]) for m in json.load(sys.stdin).get("data",[])]' 2>/dev/null || echo '(unknown)')"
+    echo "  vLLM ready: $(echo "$MODELS" | python3 -c 'import sys,json; [print(m["id"]) for m in json.load(sys.stdin).get("data",[])]' 2>/dev/null || echo '(unknown)')"
     break
   fi
   if [ "$i" = "60" ]; then
     echo "  ERROR: vLLM not responding on localhost:8000 after 60s"
-    echo "  Check: curl http://localhost:8000/v1/models"
     exit 1
   fi
   sleep 1
 done
 
-# 3. Controller + Workers をバックグラウンド起動
+# --- 3. Controller + Workers 起動 ---
 echo "[3/3] Starting Controller + Workers..."
-# start_task.py は while True: input() で待機する設計なので
-# バックグラウンド実行時は stdin を開いたままにする
-tail -f /dev/null | python3 -m src.start_task -a &
+tail -f /dev/null | python3 -m src.start_task -a --config "$CONFIG" &
 BG_PID=$!
 echo "$BG_PID" > "$PIDFILE"
 
-# Workers の登録待ち
-echo "  Waiting for all workers to register..."
+# Worker 登録待ち
+echo "  Waiting for workers to register..."
 CHECK_OK=false
 for i in $(seq 1 60); do
   WORKERS=$(curl -sf http://localhost:5000/api/list_workers 2>/dev/null || echo "")
-  if echo "$WORKERS" | python3 -c "
+  if [ -n "$WORKERS" ] && [ "$WORKERS" != "" ]; then
+    TASKS=$(echo "$WORKERS" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-tasks = {w.get('task_name','') for w in data}
-assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
-" 2>/dev/null; then
-    echo "  All workers registered: dbbench-std, alfworld-std"
-    CHECK_OK=true
-    break
+print(','.join(sorted({w.get('task_name','') for w in data})))
+" 2>/dev/null || echo "")
+    if [ -n "$TASKS" ]; then
+      echo "  Workers registered: ${TASKS}"
+      CHECK_OK=true
+      break
+    fi
   fi
   if [ "$i" = "60" ]; then
     echo "  ERROR: Workers did not register within 120s"
-    echo "  Check: python3 -c 'import gym; import alfworld'"
   fi
   sleep 2
 done
@@ -124,8 +131,6 @@ if $CHECK_OK; then
   exit 0
 else
   echo "=== Startup FAILED — stopping server ==="
-  kill "$BG_PID" 2>/dev/null || true
-  wait "$BG_PID" 2>/dev/null || true
-  rm -f "$PIDFILE"
+  cleanup_ports
   exit 1
 fi
