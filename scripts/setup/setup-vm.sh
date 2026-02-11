@@ -111,19 +111,31 @@ echo "  All dependencies verified."
 
 # alfworld ランタイムデータのダウンロード + リンク
 ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))")
-if [ ! -d "${ALFWORLD_PKG_DATA}/logic" ]; then
+ALFWORLD_CACHE_DATA="${HOME}/.cache/alfworld"
+if [ ! -d "${ALFWORLD_PKG_DATA}/logic" ] && [ ! -d "${ALFWORLD_CACHE_DATA}/logic" ]; then
   echo "  Downloading alfworld runtime data..."
-  python3 -m alfworld.data.download 2>&1 || alfworld-download 2>&1 || {
+  alfworld-download 2>&1 || {
     echo "  WARNING: alfworld-download failed. You may need to run it manually."
   }
 fi
-echo "  Linking alfworld runtime data from ${ALFWORLD_PKG_DATA}..."
-for subdir in logic json_2.1.1 detectors; do
-  if [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
-    ln -s "${ALFWORLD_PKG_DATA}/${subdir}" "${APP_DIR}/data/alfworld/${subdir}"
-    echo "    Linked: ${subdir}"
-  fi
-done
+# データソースを判定 (パッケージ内 or ~/.cache/alfworld)
+if [ -d "${ALFWORLD_PKG_DATA}/logic" ]; then
+  ALFWORLD_DATA_SRC="$ALFWORLD_PKG_DATA"
+elif [ -d "${ALFWORLD_CACHE_DATA}/logic" ]; then
+  ALFWORLD_DATA_SRC="$ALFWORLD_CACHE_DATA"
+else
+  echo "  WARNING: alfworld data not found in package or cache."
+  ALFWORLD_DATA_SRC=""
+fi
+if [ -n "$ALFWORLD_DATA_SRC" ]; then
+  echo "  Linking alfworld runtime data from ${ALFWORLD_DATA_SRC}..."
+  for subdir in logic json_2.1.1 detectors; do
+    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ] && [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
+      ln -s "${ALFWORLD_DATA_SRC}/${subdir}" "${APP_DIR}/data/alfworld/${subdir}"
+      echo "    Linked: ${subdir}"
+    fi
+  done
+fi
 
 # ============================================================
 # 5. .env / agent config の生成

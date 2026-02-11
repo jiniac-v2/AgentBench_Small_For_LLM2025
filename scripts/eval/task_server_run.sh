@@ -92,29 +92,45 @@ done
 
 # --- alfworld ランタイムデータの確認 ---
 if [ -d "data/alfworld" ]; then
+  # alfworld のデータディレクトリを検出 (パッケージ内 or ~/.cache/alfworld)
   ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))" 2>/dev/null || echo "")
-  if [ -n "$ALFWORLD_PKG_DATA" ] && [ -d "$ALFWORLD_PKG_DATA" ]; then
-    # alfworld-download が未実行ならデータをダウンロード
-    if [ ! -d "${ALFWORLD_PKG_DATA}/logic" ]; then
-      echo "  alfworld runtime data not found. Running alfworld-download..."
-      python3 -m alfworld.data.download 2>&1 || alfworld-download 2>&1 || {
-        echo "  ERROR: alfworld-download failed. Run manually: alfworld-download"
-        exit 1
-      }
-    fi
-    # シンボリックリンク作成
-    for subdir in logic json_2.1.1 detectors; do
-      if [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "data/alfworld/${subdir}" ]; then
-        ln -s "${ALFWORLD_PKG_DATA}/${subdir}" "data/alfworld/${subdir}"
-        echo "  Linked: data/alfworld/${subdir} -> ${ALFWORLD_PKG_DATA}/${subdir}"
-      fi
-    done
-    # 最終確認
-    if [ ! -e "data/alfworld/logic/alfred.pddl" ]; then
-      echo "  ERROR: data/alfworld/logic/alfred.pddl not found after setup."
-      echo "  Run: alfworld-download && sudo bash scripts/eval/task_server_run.sh"
+  ALFWORLD_CACHE_DATA="${HOME}/.cache/alfworld"
+  # どちらに logic/ があるか判定
+  if [ -d "${ALFWORLD_PKG_DATA}/logic" ]; then
+    ALFWORLD_DATA_SRC="$ALFWORLD_PKG_DATA"
+  elif [ -d "${ALFWORLD_CACHE_DATA}/logic" ]; then
+    ALFWORLD_DATA_SRC="$ALFWORLD_CACHE_DATA"
+  else
+    # どちらにもない → alfworld-download 実行
+    echo "  alfworld runtime data not found. Running alfworld-download..."
+    alfworld-download 2>&1 || {
+      echo "  ERROR: alfworld-download failed. Run manually: alfworld-download"
+      exit 1
+    }
+    # ダウンロード後に再判定
+    if [ -d "${ALFWORLD_PKG_DATA}/logic" ]; then
+      ALFWORLD_DATA_SRC="$ALFWORLD_PKG_DATA"
+    elif [ -d "${ALFWORLD_CACHE_DATA}/logic" ]; then
+      ALFWORLD_DATA_SRC="$ALFWORLD_CACHE_DATA"
+    else
+      echo "  ERROR: alfworld-download succeeded but logic/ dir not found."
+      echo "  Checked: ${ALFWORLD_PKG_DATA} and ${ALFWORLD_CACHE_DATA}"
       exit 1
     fi
+  fi
+  echo "  alfworld data source: ${ALFWORLD_DATA_SRC}"
+  # シンボリックリンク作成
+  for subdir in logic json_2.1.1 detectors; do
+    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ] && [ ! -e "data/alfworld/${subdir}" ]; then
+      ln -s "${ALFWORLD_DATA_SRC}/${subdir}" "data/alfworld/${subdir}"
+      echo "  Linked: data/alfworld/${subdir} -> ${ALFWORLD_DATA_SRC}/${subdir}"
+    fi
+  done
+  # 最終確認
+  if [ ! -e "data/alfworld/logic/alfred.pddl" ]; then
+    echo "  ERROR: data/alfworld/logic/alfred.pddl not found after setup."
+    echo "  Run: alfworld-download && sudo bash scripts/eval/task_server_run.sh"
+    exit 1
   fi
 fi
 
