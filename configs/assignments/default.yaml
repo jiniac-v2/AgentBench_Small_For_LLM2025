@@ -2,10 +2,10 @@ import: definition.yaml
 
 concurrency:
   task:
-    dbbench-std: 1
-    alfworld-std: 1
+    dbbench-std: 5
+    alfworld-std: 5
   agent:
-    vllm-model: 1
+    vllm-model: 5
 
 assignments:
   - agent:
