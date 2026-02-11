@@ -33,6 +33,8 @@
 |---|---|
 | [環境構築: ローカル](docs/setup-local.md) | ローカル環境での Python + Docker セットアップ |
 | [環境構築: GCP](docs/setup-gcp.md) | GCP VM の構築 (Terraform + gcloud) |
+| [VM 接続方法](docs/vm-connection.md) | CLI / VSCode (Cloud Code) での SSH 接続 |
+| [VM の確認・起動・停止](docs/vm-management.md) | VM の状態確認・起動・停止・削除 (CLI + コンソール) |
 | [評価実行](docs/evaluation.md) | モデル評価の実行・モデル切り替え・結果取得 |
 
 ## Citation
