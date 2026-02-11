@@ -18,7 +18,7 @@ set -e
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TERRAFORM_DIR="${SCRIPT_DIR}/../terraform"
+TERRAFORM_DIR="${SCRIPT_DIR}/../../terraform"
 
 echo "=== AgentBench GCP VM Setup ==="
 

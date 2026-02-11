@@ -20,7 +20,7 @@ HF_TOKEN=""
 # ---------------------
 
 # Auto-detect APP_DIR from script location
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 echo "=== Switching to model: ${VLLM_MODEL} ==="
 echo "APP_DIR: ${APP_DIR}"

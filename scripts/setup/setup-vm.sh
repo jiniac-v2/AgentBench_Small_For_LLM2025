@@ -27,7 +27,7 @@ HF_TOKEN="${HF_TOKEN:-}"
 # ---------------
 
 # Auto-detect APP_DIR from script location
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # Detect the user who invoked sudo (or current user)
 ACTUAL_USER="${SUDO_USER:-$(whoami)}"
