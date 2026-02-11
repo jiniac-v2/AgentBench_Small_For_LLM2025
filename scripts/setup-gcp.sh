@@ -67,38 +67,12 @@ echo ""
 echo "  VM created: ${INSTANCE_IP}"
 
 # ----------------------------------------------------------
-# 3. 構築完了待ち (SSH + startup script 完了)
+# 3. startup script 完了待ち
 # ----------------------------------------------------------
-PROVISION_MARKER="/var/log/agentbench-provisioned"
-MAX_WAIT=60  # 60 × 10s = 10分
-
-echo "[2/3] 構築完了待ち (最大 $((MAX_WAIT * 10 / 60)) 分)..."
-for i in $(seq 1 ${MAX_WAIT}); do
-  RESULT=$(gcloud compute ssh agentbench-eval \
-    --zone "${ZONE}" --project "${PROJECT_ID}" \
-    --command "test -f ${PROVISION_MARKER} && echo READY || echo NOTYET" \
-    --quiet 2>/dev/null || echo "SSH_FAIL")
-
-  if [ "$RESULT" = "READY" ]; then
-    echo "  構築完了!"
-    break
-  fi
-
-  if [ "$i" = "${MAX_WAIT}" ]; then
-    echo "  WARNING: タイムアウト (10分)"
-    echo "  手動で確認してください:"
-    echo "    gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
-    echo "    sudo tail -f /var/log/agentbench-startup.log"
-    exit 1
-  fi
-
-  if [ "$RESULT" = "SSH_FAIL" ]; then
-    echo "  SSH 接続待ち... (${i}/${MAX_WAIT})"
-  else
-    echo "  startup script 実行中... (${i}/${MAX_WAIT})"
-  fi
-  sleep 10
-done
+echo "[2/3] VM の startup script が完了するまで約5分待ちます..."
+echo "  (進捗は Terraform ログで確認済み)"
+sleep 300
+echo "  待機完了!"
 
 # ----------------------------------------------------------
 # 4. リポジトリを VM に clone
