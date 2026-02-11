@@ -140,9 +140,9 @@ fi
 echo "[3/3] Starting Controller + Workers..."
 LOGFILE="logs/task_server_$(date +%Y%m%d_%H%M%S).log"
 mkdir -p logs
-python3 -m src.start_task -a --config "$CONFIG" </dev/null >"$LOGFILE" 2>&1 &
+tail -f /dev/null | python3 -m src.start_task -a --config "$CONFIG" >"$LOGFILE" 2>&1 &
 BG_PID=$!
-disown $BG_PID
+disown
 echo "$BG_PID" > "$PIDFILE"
 echo "  Log: $LOGFILE"
 

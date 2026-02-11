@@ -136,14 +136,7 @@ if __name__ == "__main__":
             _start_worker(args.start[i], base_port, controller_addr, config["definition"])
             base_port += 1
 
-    # Keep the main process alive so child processes (controller + workers)
-    # are not orphaned.  The old `input()` loop crashed with EOFError when
-    # stdin was closed (e.g. parent shell exited), killing everything.
-    import signal, threading
-
-    shutdown = threading.Event()
-    signal.signal(signal.SIGTERM, lambda *_: shutdown.set())
-    signal.signal(signal.SIGINT, lambda *_: shutdown.set())
-    shutdown.wait()
+    while True:
+        input()
 
 # try: python start_task.py ../configs/server/test.yaml -a
