@@ -5,6 +5,7 @@ Requires=agentbench-vllm.service
 
 [Service]
 Type=simple
+TimeoutStartSec=600
 WorkingDirectory=/opt/agentbench
 EnvironmentFile=/opt/agentbench/.env
 Environment="PYTHONPATH=/opt/agentbench"
