@@ -62,6 +62,7 @@ resource "google_compute_instance" "agentbench" {
 
   metadata = {
     "install-nvidia-driver" = "True"
+    "git-branch"            = var.git_branch
     "vllm-model"            = var.vllm_model
     "hf-token"              = var.hf_token
   }

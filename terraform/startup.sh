@@ -74,12 +74,17 @@ fi
 log "Cloning repository..."
 apt-get install -y git
 
+# Branch from instance metadata
+GIT_BRANCH=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/git-branch \
+  2>/dev/null || echo "main")
+
 # Secret Manager for private repo (optional)
 GITHUB_TOKEN=$(gcloud secrets versions access latest --secret="github-pat" 2>/dev/null || echo "")
 if [ -n "$GITHUB_TOKEN" ]; then
-  git clone "https://${GITHUB_TOKEN}@github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
+  git clone -b "$GIT_BRANCH" "https://${GITHUB_TOKEN}@github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
 else
-  git clone "https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
+  git clone -b "$GIT_BRANCH" "https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git" "$APP_DIR"
 fi
 cd "$APP_DIR"
 

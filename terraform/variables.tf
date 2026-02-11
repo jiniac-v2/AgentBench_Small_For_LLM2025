@@ -27,6 +27,12 @@ variable "disk_size_gb" {
   default     = 200
 }
 
+variable "git_branch" {
+  description = "Git branch to clone on the VM"
+  type        = string
+  default     = "main"
+}
+
 variable "vllm_model" {
   description = "HuggingFace model ID or path for vLLM"
   type        = string
