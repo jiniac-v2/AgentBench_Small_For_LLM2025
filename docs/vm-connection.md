@@ -16,7 +16,9 @@ VSCode の **Remote - SSH** 拡張機能と GCP の **IAP (Identity-Aware Proxy)
 ### 1. 前提
 
 - gcloud CLI がインストール済み・認証済み (`gcloud auth login`)
-- VSCode 拡張機能 **Remote - SSH** (`ms-vscode-remote.remote-ssh`) をインストール
+- VSCode 拡張機能:
+  - **Remote - SSH** (`ms-vscode-remote.remote-ssh`) — VM への接続・リモート開発
+  - **Cloud Code** (`GoogleCloudTools.cloudcode`) — VM の状態確認 (任意)
 
 ### 2. 初回 SSH 接続 (鍵の生成)
 
@@ -101,3 +103,13 @@ Host agentbench-eval
 
 - `remotePlatform` を指定するとプラットフォーム検出ステップをスキップでき、IAP tunnel 経由でも安定します
 - `showLoginTerminal: true` で接続失敗時のデバッグが容易になります
+
+## 補足: Cloud Code で VM の状態を確認する
+
+Cloud Code 拡張機能をインストールすると、VSCode のサイドバーから VM の状態 (実行中・停止中など) を GUI で確認できます。
+
+1. 左サイドバーの **Cloud Code アイコン** をクリック
+2. **Compute Engine** セクションを展開
+3. プロジェクトを選択すると、VM の一覧と状態が表示される
+
+> Cloud Code は VM の状態確認用です。VM への接続・リモート開発には上記の **Remote - SSH** を使用してください。
