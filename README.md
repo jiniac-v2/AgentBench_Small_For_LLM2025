@@ -88,35 +88,40 @@ bash scripts/run.sh
 
 ### 0. 事前準備
 
-`gcloud` CLI と `terraform` がインストール・認証済みであること。
+`gcloud` CLI と `terraform` がインストール済みであること。
 
-#### 請求先アカウント
+#### Step 1: 認証・プロジェクト設定
+
+```bash
+gcloud auth login
+gcloud auth application-default login    # Terraform 用
+```
+
+```bash
+gcloud projects list
+gcloud config set project YOUR_PROJECT_ID
+```
+
+#### Step 2: 請求先アカウントの確認
 
 GPU 付き VM を使うには請求先アカウントが紐づいている必要があります（無料トライアルでは GPU クォータは付与されません）。
 [Cloud コンソール → お支払い](https://console.cloud.google.com/billing) で確認してください。
 
-#### GCP プロジェクトの準備
+#### Step 3: API の有効化
 
 ```bash
-# 1. 認証
-gcloud auth login
-gcloud auth application-default login    # Terraform 用
-
-# 2. プロジェクト設定
-gcloud projects list
-gcloud config set project YOUR_PROJECT_ID
-
-# 3. 必要な API を有効化
 gcloud services enable compute.googleapis.com           # Compute Engine
 gcloud services enable iam.googleapis.com               # IAM
 gcloud services enable secretmanager.googleapis.com     # Secret Manager (private repo 用)
 ```
 
-#### GPU クォータの確認・引き上げ
+> Compute Engine API が有効でないと、VM 作成もクォータ確認もできません。必ず先に実行してください。
+
+#### Step 4: GPU クォータの確認・引き上げ
 
 GPU クォータは新規プロジェクトではデフォルト **0** です。引き上げが必要です。
 
-**CLI で確認 (推奨):**
+**CLI で確認:**
 
 ```bash
 gcloud compute regions describe me-central2 \
@@ -148,7 +153,6 @@ gcloud compute regions describe me-central2 \
 9. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
 
 > 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
-> 無料トライアルアカウントでは GPU クォータは付与されません。
 
 ### 1. VM 構築 (ローカルから一発)
 
