@@ -16,6 +16,7 @@ set -e
 #   2. NVIDIA Container Toolkit のインストール
 #   3. ユーザーを docker グループに追加
 #   4. Python 依存パッケージのインストール
+#      + ALFWorld ランタイムデータのリンク (logic/, json_2.1.1/, detectors/)
 #   5. .env / agent config の生成
 #   6. Docker イメージの pull
 #
