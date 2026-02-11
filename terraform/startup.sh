@@ -54,14 +54,23 @@ fi
 log "APP_DIR=${APP_DIR}"
 
 # ============================================================
-# 1. Docker Compose plugin
+# 1. Docker Engine
 # ============================================================
-log "Installing Docker Compose plugin..."
-DOCKER_COMPOSE_VERSION="v2.29.1"
-mkdir -p /usr/local/lib/docker/cli-plugins
-curl -SL "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64" \
-  -o /usr/local/lib/docker/cli-plugins/docker-compose
-chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+if ! command -v docker &> /dev/null; then
+  log "Installing Docker Engine..."
+  apt-get update
+  apt-get install -y ca-certificates curl gnupg
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  apt-get update
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  systemctl enable --now docker
+else
+  log "Docker already installed."
+fi
 
 # ============================================================
 # 2. NVIDIA Container Toolkit (Docker GPU access)
