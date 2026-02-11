@@ -59,28 +59,5 @@ terraform apply -auto-approve \
 
 INSTANCE_IP=$(terraform output -raw instance_ip 2>/dev/null || echo "")
 
-# ----------------------------------------------------------
-# 完了 — 次のステップを表示
-# ----------------------------------------------------------
-
 echo ""
-echo "=========================================="
-echo " VM 作成完了!"
-echo "=========================================="
-echo ""
-echo "startup script が clone を実行中です。"
-echo "数分待ってから SSH してください。"
-echo ""
-echo "1. SSH 接続:"
-echo "   gcloud compute ssh agentbench-eval --zone ${ZONE} --project ${PROJECT_ID}"
-echo ""
-echo "2. 環境構築 (VM 上で実行 / 初回のみ):"
-echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh"
-echo ""
-echo "3. 評価実行 (VM 上で実行):"
-echo "   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh"
-echo ""
-echo "VSCode Remote SSH:"
-echo "   gcloud compute config-ssh"
-echo "   → Remote-SSH: Connect to Host → agentbench-eval.${ZONE}.${PROJECT_ID}"
-echo ""
+echo "VM 作成完了! 数分待ってから SSH してください。"
