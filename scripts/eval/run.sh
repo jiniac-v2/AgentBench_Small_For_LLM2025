@@ -2,10 +2,11 @@
 set -e
 
 # ============================================================
-# AgentBench プリフライトチェック
+# AgentBench タスクサーバー起動スクリプト
 #
 # Usage:
-#   bash scripts/eval/run.sh
+#   bash scripts/eval/run.sh        # サーバー起動 + worker 登録確認
+#   bash scripts/eval/run.sh stop   # サーバー停止
 #
 # Prerequisites:
 #   - vLLM が localhost:8000 で稼働中 (systemd or docker compose)
@@ -14,27 +15,36 @@ set -e
 # 処理内容:
 #   1. agent config のモデル名を設定
 #   2. vLLM の疎通確認
-#   3. Controller + Workers を一時起動し、全 worker の登録を確認
-#   チェック完了後、起動したプロセスを停止して終了する。
+#   3. Controller + Workers をバックグラウンド起動し、worker 登録を確認
+#   成功したらサーバーは動いたままスクリプト終了。
+#   失敗したらサーバーを停止して exit 1。
 #
 # 評価の実行:
-#   python3 -m src.start_task -a   # ターミナルでサーバー起動
-#   # 別ターミナルで:
 #   python3 -m src.assigner -c configs/assignments/default.yaml
+#
+# サーバーの停止:
+#   bash scripts/eval/run.sh stop
 # ============================================================
 
+PIDFILE="/tmp/agentbench-server.pid"
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
-BG_PID=""
 
-cleanup() {
-  if [ -n "$BG_PID" ]; then
-    kill "$BG_PID" 2>/dev/null || true
-    wait "$BG_PID" 2>/dev/null || true
+# --- stop サブコマンド ---
+if [ "${1:-}" = "stop" ]; then
+  if [ -f "$PIDFILE" ]; then
+    PID=$(cat "$PIDFILE")
+    echo "Stopping AgentBench server (PID: $PID)..."
+    kill "$PID" 2>/dev/null || true
+    wait "$PID" 2>/dev/null || true
+    rm -f "$PIDFILE"
+    echo "Stopped."
+  else
+    echo "No PID file found ($PIDFILE). Server may not be running."
   fi
-}
-trap cleanup EXIT
+  exit 0
+fi
 
-echo "=== AgentBench Preflight Check ==="
+echo "=== AgentBench Task Server ==="
 echo "Model: ${VLLM_MODEL}"
 
 # 1. agent config のモデル名を設定
@@ -72,12 +82,13 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
-# 3. Controller + Workers を一時起動して登録確認
-echo "[3/3] Starting Controller + Workers (temporary)..."
+# 3. Controller + Workers をバックグラウンド起動
+echo "[3/3] Starting Controller + Workers..."
 # start_task.py は while True: input() で待機する設計なので
 # バックグラウンド実行時は stdin を開いたままにする
 tail -f /dev/null | python3 -m src.start_task -a &
 BG_PID=$!
+echo "$BG_PID" > "$PIDFILE"
 
 # Workers の登録待ち
 echo "  Waiting for all workers to register..."
@@ -101,20 +112,20 @@ assert 'dbbench-std' in tasks and 'alfworld-std' in tasks
   sleep 2
 done
 
-# 一時プロセスを停止 (trap cleanup でも止まるが明示的に)
-echo "  Stopping temporary server..."
-cleanup
-BG_PID=""
-
 echo ""
 if $CHECK_OK; then
-  echo "=== All checks passed ==="
+  echo "=== Task server ready (PID: $BG_PID) ==="
   echo ""
-  echo "To run evaluation:"
-  echo "  1. python3 -m src.start_task -a"
-  echo "  2. (別ターミナル) python3 -m src.assigner -c configs/assignments/default.yaml"
+  echo "Run evaluation:"
+  echo "  python3 -m src.assigner -c configs/assignments/default.yaml"
+  echo ""
+  echo "Stop server:"
+  echo "  bash scripts/eval/run.sh stop"
   exit 0
 else
-  echo "=== Checks FAILED ==="
+  echo "=== Startup FAILED — stopping server ==="
+  kill "$BG_PID" 2>/dev/null || true
+  wait "$BG_PID" 2>/dev/null || true
+  rm -f "$PIDFILE"
   exit 1
 fi
