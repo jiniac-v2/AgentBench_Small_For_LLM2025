@@ -126,11 +126,15 @@ GPU クォータは新規プロジェクトではデフォルト **0** です。
 ```bash
 gcloud compute regions describe me-central2 \
   --project YOUR_PROJECT_ID \
-  --format="table(quotas.metric,quotas.limit,quotas.usage)" \
-  | grep -i nvidia
+  --format=json \
+  | python3 -c "
+import json, sys
+for q in json.load(sys.stdin).get('quotas', []):
+    if 'NVIDIA_L4' in q.get('metric', ''):
+        print(f\"{q['metric']}: limit={q['limit']}, usage={q['usage']}\")"
 ```
 
-`NVIDIA_L4_GPUS` の `limit` が `0` なら引き上げが必要です。
+`NVIDIA_L4_GPUS: limit=1.0` 以上なら OK です。`limit=0.0` なら引き上げが必要です。
 
 **コンソールで確認・引き上げ:**
 
