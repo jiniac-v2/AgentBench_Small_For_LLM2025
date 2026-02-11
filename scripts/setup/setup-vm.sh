@@ -109,8 +109,14 @@ python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; ex
 python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alfworld."; exit 1; }
 echo "  All dependencies verified."
 
-# alfworld パッケージのランタイムデータを data/alfworld/ にリンク
+# alfworld ランタイムデータのダウンロード + リンク
 ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))")
+if [ ! -d "${ALFWORLD_PKG_DATA}/logic" ]; then
+  echo "  Downloading alfworld runtime data..."
+  python3 -m alfworld.data.download 2>&1 || alfworld-download 2>&1 || {
+    echo "  WARNING: alfworld-download failed. You may need to run it manually."
+  }
+fi
 echo "  Linking alfworld runtime data from ${ALFWORLD_PKG_DATA}..."
 for subdir in logic json_2.1.1 detectors; do
   if [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then

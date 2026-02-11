@@ -15,7 +15,8 @@ mysql-connector-python==8.0.33
 docker==6.1.2
 
 # ALFWorld
-gym
-alfworld
+gym==0.24.0
+alfworld==0.4.2
+textworld==1.7.0
 nltk
 torch
