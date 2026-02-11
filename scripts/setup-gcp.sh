@@ -89,53 +89,67 @@ done
 
 # ----------------------------------------------------------
 # 4. プロビジョニング完了待ち
-#    判定方法 (いずれかで完了判定):
-#      A) マーカーファイル /var/log/agentbench-provisioned が存在
-#      B) startup script のプロセスが終了している
+#    journalctl で startup script の全出力をリアルタイム表示
+#    "exit status" が出たら完了
 # ----------------------------------------------------------
 echo "[3/3] プロビジョニング完了待ち..."
-echo "  (初回はDocker image pull等で10〜15分程度かかります)"
+echo "  (初回はDocker/pip install等で10〜15分程度かかります)"
 echo ""
 
-# 1回の SSH 接続で VM 側でループ
 gcloud compute ssh agentbench-eval \
   --zone "${ZONE}" --project "${PROJECT_ID}" \
   --command '
+    # 既に完了済みなら即終了
+    if [ -f /var/log/agentbench-provisioned ]; then
+      echo "=========================================="
+      echo " プロビジョニング完了!"
+      echo "=========================================="
+      exit 0
+    fi
+
+    # journalctl で startup script の出力をリアルタイムに流す
+    # "exit status" が出たら完了 (成功: 0, 失敗: 非0)
+    echo "--- startup script ログ ---"
+    sudo journalctl -u google-startup-scripts -f --no-pager -o cat 2>/dev/null &
+    JOURNAL_PID=$!
+
+    # 裏で完了チェック
     for i in $(seq 1 180); do
-      # A) マーカーファイルがあれば確実に完了
+      sleep 10
+
+      # マーカーファイルで完了判定
       if [ -f /var/log/agentbench-provisioned ]; then
+        kill $JOURNAL_PID 2>/dev/null
         echo ""
         echo "=========================================="
         echo " プロビジョニング完了!"
         echo "=========================================="
-        tail -3 /var/log/agentbench-startup.log 2>/dev/null
         exit 0
       fi
 
-      # B) startup script のプロセスが存在しなければ完了
-      #    (google_metadata_script_runner が startup script を実行する)
-      if ! pgrep -f "google_metadata_script_runner.*startup" > /dev/null 2>&1; then
-        # プロセスがいない = 完了 or まだ始まっていない
-        # ログファイルが存在すれば「完了済み」と判断
-        if [ -f /var/log/agentbench-startup.log ]; then
-          echo ""
+      # journal に exit status が出ていれば完了
+      if sudo journalctl -u google-startup-scripts --no-pager -o cat 2>/dev/null | grep -q "startup-script exit status"; then
+        kill $JOURNAL_PID 2>/dev/null
+        EXIT_LINE=$(sudo journalctl -u google-startup-scripts --no-pager -o cat 2>/dev/null | grep "startup-script exit status" | tail -1)
+        echo ""
+        if echo "$EXIT_LINE" | grep -q "exit status 0"; then
           echo "=========================================="
           echo " プロビジョニング完了!"
           echo "=========================================="
-          tail -3 /var/log/agentbench-startup.log 2>/dev/null
-          exit 0
+        else
+          echo "=========================================="
+          echo " ERROR: startup script が失敗しました"
+          echo " ${EXIT_LINE}"
+          echo "=========================================="
+          exit 1
         fi
+        exit 0
       fi
-
-      # Show latest log line
-      LOG=$(tail -1 /var/log/agentbench-startup.log 2>/dev/null || echo "(startup script starting...)")
-      echo "  [${i}/180] ${LOG}"
-      sleep 10
     done
+
+    kill $JOURNAL_PID 2>/dev/null
     echo ""
     echo "WARNING: プロビジョニングがタイムアウトしました (30分)。"
-    echo "  cat /var/log/agentbench-startup.log"
-    echo "  sudo journalctl -u google-startup-scripts --no-pager"
     exit 1
   '
 
