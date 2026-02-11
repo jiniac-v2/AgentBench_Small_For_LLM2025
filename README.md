@@ -84,27 +84,23 @@ bash scripts/run.sh
 
 ---
 
-## GCP デプロイ (Terraform)
+## GCP デプロイ
 
 ### 前提条件
 
-- `gcloud` CLI インストール・認証済み
+- `gcloud` CLI インストール・認証済み (`gcloud auth login && gcloud auth application-default login`)
 - `terraform` >= 1.0 インストール済み
 - 対象GCPプロジェクトへのアクセス権限
 
-### 1. GCP 認証
+### 1. VM 構築 (ローカルから一発)
 
 ```bash
-gcloud auth login
-gcloud auth application-default login
-```
+# Terraform 設定
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+vi terraform/terraform.tfvars    # project_id を設定（必須）
 
-### 2. Terraform 設定
-
-```bash
-cd terraform/
-cp terraform.tfvars.example terraform.tfvars
-vi terraform.tfvars
+# VM 作成 〜 プロビジョニング完了まで一発実行
+bash scripts/setup-gcp.sh
 ```
 
 `terraform.tfvars`:
@@ -118,57 +114,31 @@ vllm_model   = "Qwen/Qwen2.5-7B-Instruct"
 hf_token     = ""                   # gated model の場合のみ
 ```
 
-### 3. VM 作成
+`setup-gcp.sh` は以下を順番に実行します:
+1. `terraform apply` (VM 作成)
+2. SSH 接続待ち
+3. プロビジョニング完了待ち (Docker pull 等で初回10〜15分)
+
+完了すると SSH 接続コマンドが表示されます。
+
+### 2. SSH 接続
 
 ```bash
-terraform init
-terraform plan     # 変更内容を確認
-terraform apply    # VM作成 (自動構築開始)
+# gcloud SSH
+gcloud compute ssh agentbench-eval --zone me-central2-c --project your-project-id
+
+# または VSCode Remote SSH (IP は setup-gcp.sh の出力に表示)
 ```
 
-出力例:
-```
-instance_ip = "34.xxx.xxx.xxx"
-ssh_command = "gcloud compute ssh agentbench-eval --zone me-central2-c --project your-project-id"
-```
-
-### 4. SSH 接続・状態確認
-
-```bash
-gcloud compute ssh agentbench-eval \
-  --zone me-central2-c \
-  --project your-project-id
-```
-
-VM 起動後、`startup.sh` が自動で初回セットアップを実行します（冪等: 2回目以降はスキップ）:
-
-```
-startup.sh (初回のみ)
-  ├── Docker Compose plugin + NVIDIA Container Toolkit
-  ├── git clone (Self-Clone)
-  ├── pip install -r requirements.txt
-  ├── .env 生成 (メタデータから VLLM_MODEL 取得)
-  ├── docker pull mysql:9.5.0 / vllm-openai:v0.13.0
-  └── systemd サービス有効化 (インフラのみ)
-       ├── agentbench-vllm          (Docker, port 8000)
-       ├── agentbench-controller    (port 5020, 推論テスト込み)
-       ├── agentbench-worker-dbbench   (port 5023)
-       └── agentbench-worker-alfworld  (port 5021)
-
-※ Assigner (評価) は自動起動しません。モデル毎に手動実行します。
-```
-
-### 5. 評価実行 (モデル切り替え)
+### 3. 評価実行 (SSH 接続後)
 
 VM は一度構築すれば、複数モデルの評価に繰り返し使えます。
 
 ```bash
-# SSH 接続した状態で
-
-# 初回評価（Terraform で指定したモデル）
+# モデル評価
 sudo bash /opt/agentbench/scripts/switch-model.sh Qwen/Qwen2.5-7B-Instruct
 
-# 別モデルに切り替えて評価
+# 別モデルに切り替えて再評価
 sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-model
 
 # HuggingFace private モデルの場合（READトークン付き）
@@ -176,41 +146,26 @@ sudo bash /opt/agentbench/scripts/switch-model.sh your-org/your-private-model hf
 ```
 
 `switch-model.sh` は以下を自動実行します:
-1. `.env` にモデル名・HFトークンを更新
-2. `api_agents.yaml` のモデル名を更新
-3. vLLM + 全サービスを再起動
-4. 前回の出力をクリア
-5. Assigner (評価) を実行
+1. `.env` + `api_agents.yaml` のモデル名を更新
+2. vLLM + 全サービスを再起動
+3. 前回の出力をクリア
+4. Assigner (評価) を実行
 
-### 6. サービス監視
+### 4. 監視・結果取得
 
 ```bash
-# startup スクリプトのログ
-sudo journalctl -u google-startup-scripts -f
+# 評価の進行状況
+sudo journalctl -u agentbench-assigner -f
 
 # 各サービスの状態
 sudo systemctl status agentbench-vllm
 sudo systemctl status agentbench-controller
 sudo systemctl status agentbench-worker-dbbench
 sudo systemctl status agentbench-worker-alfworld
-
-# Assigner の進行状況
-sudo journalctl -u agentbench-assigner -f
-
-# vLLM 推論確認
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "Qwen/Qwen2.5-7B-Instruct",
-    "messages": [{"role": "user", "content": "Hi"}],
-    "max_tokens": 10
-  }'
 ```
 
-### 7. 結果取得
-
 ```bash
-# VM 上で確認
+# 結果確認 (VM 上)
 ls /opt/agentbench/outputs/
 
 # ローカルにコピー
@@ -219,11 +174,10 @@ gcloud compute scp --recurse \
   --zone me-central2-c --project your-project-id
 ```
 
-### 8. VM 削除
+### 5. VM 削除
 
 ```bash
-cd terraform/
-terraform destroy
+cd terraform && terraform destroy
 ```
 
 ### Secret Manager (privateリポジトリの場合)
