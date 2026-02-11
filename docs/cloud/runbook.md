@@ -29,7 +29,7 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-python3 -m src.start_task -a
+sudo -E python3 -m src.start_task -a 
 ```
 
 Controller と Workers がすべて起動するまで待つ（`Worker registered` のログが出れば OK）。
