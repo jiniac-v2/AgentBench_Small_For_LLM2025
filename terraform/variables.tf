@@ -40,16 +40,3 @@ variable "ssh_user" {
   type        = string
   default     = ""
 }
-
-variable "vllm_model" {
-  description = "HuggingFace model ID or path for vLLM"
-  type        = string
-  default     = "Qwen/Qwen2.5-7B-Instruct"
-}
-
-variable "hf_token" {
-  description = "HuggingFace API token (for gated models)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}

@@ -62,10 +62,7 @@ resource "google_compute_instance" "agentbench" {
 
   metadata = {
     "install-nvidia-driver" = "True"
-    "git-branch"            = var.git_branch
     "ssh-user"              = var.ssh_user
-    "vllm-model"            = var.vllm_model
-    "hf-token"              = var.hf_token
   }
 
   metadata_startup_script = file("${path.module}/startup.sh")
