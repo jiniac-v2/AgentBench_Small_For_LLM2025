@@ -130,9 +130,11 @@ fi
 if [ -n "$ALFWORLD_DATA_SRC" ]; then
   echo "  Linking alfworld runtime data from ${ALFWORLD_DATA_SRC}..."
   for subdir in logic json_2.1.1 detectors; do
-    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ] && [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
-      ln -s "${ALFWORLD_DATA_SRC}/${subdir}" "${APP_DIR}/data/alfworld/${subdir}"
-      echo "    Linked: ${subdir}"
+    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ]; then
+      if [ -L "${APP_DIR}/data/alfworld/${subdir}" ] || [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
+        ln -sfn "${ALFWORLD_DATA_SRC}/${subdir}" "${APP_DIR}/data/alfworld/${subdir}"
+        echo "    Linked: ${subdir}"
+      fi
     fi
   done
 fi

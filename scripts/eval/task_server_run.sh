@@ -119,11 +119,13 @@ if [ -d "data/alfworld" ]; then
     fi
   fi
   echo "  alfworld data source: ${ALFWORLD_DATA_SRC}"
-  # シンボリックリンク作成
+  # シンボリックリンク作成 (壊れたリンクがあれば上書き)
   for subdir in logic json_2.1.1 detectors; do
-    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ] && [ ! -e "data/alfworld/${subdir}" ]; then
-      ln -s "${ALFWORLD_DATA_SRC}/${subdir}" "data/alfworld/${subdir}"
-      echo "  Linked: data/alfworld/${subdir} -> ${ALFWORLD_DATA_SRC}/${subdir}"
+    if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ]; then
+      if [ -L "data/alfworld/${subdir}" ] || [ ! -e "data/alfworld/${subdir}" ]; then
+        ln -sfn "${ALFWORLD_DATA_SRC}/${subdir}" "data/alfworld/${subdir}"
+        echo "  Linked: data/alfworld/${subdir} -> ${ALFWORLD_DATA_SRC}/${subdir}"
+      fi
     fi
   done
   # 最終確認
