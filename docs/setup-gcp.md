@@ -109,13 +109,14 @@ git_branch   = "main"              # VM にクローンするブランチ
 ```
 
 ```bash
-# VM 作成 + 構築完了待ち
+# VM 作成 + 構築完了待ち + リポジトリ clone
 bash scripts/setup-gcp.sh
 ```
 
 `setup-gcp.sh` は以下を実行します:
 1. `terraform apply` (VM 作成)
 2. 構築完了待ち (SSH 接続 + startup script 完了を確認、最大 10 分)
+3. リポジトリを VM に clone (`git_branch` で指定したブランチ、private リポの場合は Secret Manager の PAT を使用)
 
 ## Step 7: VM 環境構築
 
