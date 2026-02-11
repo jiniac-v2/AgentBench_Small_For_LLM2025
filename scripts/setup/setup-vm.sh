@@ -108,6 +108,16 @@ python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; ex
 python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alfworld."; exit 1; }
 echo "  All dependencies verified."
 
+# alfworld パッケージのランタイムデータを data/alfworld/ にリンク
+ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))")
+echo "  Linking alfworld runtime data from ${ALFWORLD_PKG_DATA}..."
+for subdir in logic json_2.1.1 detectors; do
+  if [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
+    ln -s "${ALFWORLD_PKG_DATA}/${subdir}" "${APP_DIR}/data/alfworld/${subdir}"
+    echo "    Linked: ${subdir}"
+  fi
+done
+
 # ============================================================
 # 5. .env / agent config の生成
 # ============================================================
