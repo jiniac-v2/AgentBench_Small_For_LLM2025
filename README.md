@@ -88,34 +88,7 @@ bash scripts/run.sh
 
 ### 0. 事前準備
 
-#### ツールのインストール (macOS)
-
-**gcloud CLI:**
-```bash
-# Apple Silicon (M1/M2/M3)
-curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
-tar -xf google-cloud-cli-darwin-arm.tar.gz -C ~/
-~/google-cloud-sdk/install.sh   # "Modify profile to update your $PATH?" → Y
-source ~/.zshrc
-
-# Intel Mac
-curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-x86_64.tar.gz
-tar -xf google-cloud-cli-darwin-x86_64.tar.gz -C ~/
-~/google-cloud-sdk/install.sh
-source ~/.zshrc
-```
-
-**Terraform:**
-```bash
-brew install terraform
-```
-
-#### GCP 認証
-
-```bash
-gcloud auth login                        # ブラウザでGoogleアカウント認証
-gcloud auth application-default login    # Terraform 用の認証
-```
+`gcloud` CLI と `terraform` がインストール・認証済みであること。
 
 #### GCP プロジェクトの準備
 
