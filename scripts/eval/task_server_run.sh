@@ -90,6 +90,19 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
+# --- alfworld ランタイムデータのシンボリックリンク確認 ---
+if [ -d "data/alfworld" ]; then
+  ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))" 2>/dev/null || echo "")
+  if [ -n "$ALFWORLD_PKG_DATA" ] && [ -d "$ALFWORLD_PKG_DATA" ]; then
+    for subdir in logic json_2.1.1 detectors; do
+      if [ -d "${ALFWORLD_PKG_DATA}/${subdir}" ] && [ ! -e "data/alfworld/${subdir}" ]; then
+        ln -s "${ALFWORLD_PKG_DATA}/${subdir}" "data/alfworld/${subdir}"
+        echo "  Linked: data/alfworld/${subdir} -> ${ALFWORLD_PKG_DATA}/${subdir}"
+      fi
+    done
+  fi
+fi
+
 # --- 3. Controller + Workers 起動 ---
 echo "[3/3] Starting Controller + Workers..."
 tail -f /dev/null | python3 -m src.start_task -a --config "$CONFIG" &
