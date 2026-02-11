@@ -1,78 +1,6 @@
-# 評価実行
+# 評価リファレンス
 
-環境構築が完了していること: [ローカル環境構築](setup-local.md) / [GCP環境構築](setup-gcp.md)
-
-## モデル切替
-
-### GCP 環境
-
-```bash
-# switch-model.sh を編集してモデル名・HFトークンを設定
-vi ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
-```
-
-```bash
-# ---- ここを編集 ----
-VLLM_MODEL="your-org/your-model"
-HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
-# ---------------------
-```
-
-```bash
-# モデル切替 (.env + config 更新 → サービス再起動)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
-```
-
-### ローカル環境
-
-```bash
-export VLLM_MODEL="your-org/your-model"
-bash scripts/eval/run.sh
-```
-
----
-
-## 評価実行
-
-ローカル・GCP 共通です。2 つのターミナルを使います。
-
-### ターミナル 1: タスクサーバー起動
-
-```bash
-cd ~/AgentBench_Small_For_LLM2025
-python3 -m src.start_task -a
-```
-
-Controller と Workers がすべて起動するまで待ちます（`Worker registered` のログが出れば OK）。
-**このターミナルは閉じずにそのまま維持してください。**
-
-### ターミナル 2: 評価の実行（別ターミナルを開く）
-
-新しいターミナルを開き、以下を実行します。
-
-```bash
-cd ~/AgentBench_Small_For_LLM2025
-python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
-```
-
-実行ログは `outputs/execution.log` に保存されます。
-結果は `outputs/` 以下に出力されます。
-
-### 前回の結果をクリアして再実行
-
-```bash
-rm -rf outputs/*
-python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
-```
-
-### タスクサーバーの停止
-
-評価が完了したら、ターミナル 1 で `Ctrl+C` を押してサーバーを停止します。
-リモート接続で `Ctrl+C` が効かない場合は、別ターミナルから以下で停止できます:
-
-```bash
-pkill -f "src.start_task"
-```
+実験の手順は [実験手順 (Runbook)](runbook.md) を参照してください。
 
 ---
 
@@ -103,18 +31,6 @@ sudo systemctl restart agentbench-vllm
 sudo systemctl restart agentbench-controller
 sudo systemctl restart agentbench-worker-dbbench
 sudo systemctl restart agentbench-worker-alfworld
-```
-
-## 結果取得
-
-```bash
-# VM 上で確認
-ls ~/AgentBench_Small_For_LLM2025/outputs/
-
-# ローカルにコピー
-gcloud compute scp --recurse \
-  agentbench-eval:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
-  --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
 ---
