@@ -90,36 +90,59 @@ bash scripts/run.sh
 
 `gcloud` CLI と `terraform` がインストール・認証済みであること。
 
+#### 請求先アカウント
+
+GPU 付き VM を使うには請求先アカウントが紐づいている必要があります（無料トライアルでは GPU クォータは付与されません）。
+[Cloud コンソール → お支払い](https://console.cloud.google.com/billing) で確認してください。
+
 #### GCP プロジェクトの準備
 
 ```bash
-# プロジェクト一覧を確認
-gcloud projects list
+# 1. 認証
+gcloud auth login
+gcloud auth application-default login    # Terraform 用
 
-# 使用するプロジェクトを設定
+# 2. プロジェクト設定
+gcloud projects list
 gcloud config set project YOUR_PROJECT_ID
 
-# 必要な API を有効化
+# 3. 必要な API を有効化
 gcloud services enable compute.googleapis.com           # Compute Engine
 gcloud services enable iam.googleapis.com               # IAM
 gcloud services enable secretmanager.googleapis.com     # Secret Manager (private repo 用)
 ```
 
-#### GPU クォータの確認
+#### GPU クォータの確認・引き上げ
 
 GPU クォータは新規プロジェクトではデフォルト **0** です。引き上げが必要です。
 
-1. [Google Cloud コンソール → クォータ](https://console.cloud.google.com/iam-admin/quotas) を開く
-2. フィルタに `NVIDIA_L4_GPUS` と入力
-3. `me-central2` リージョンの値が **1 以上** であることを確認
-4. 0 の場合 → 「クォータを編集」→ 上限を `1` にリクエスト
+**コンソールで確認:**
 
-> クォータ引き上げには数分〜数日かかる場合があります。
+1. [Google Cloud コンソール → IAM と管理 → 割り当て](https://console.cloud.google.com/iam-admin/quotas) を開く
+2. フィルタ欄をクリックし、以下の条件で絞り込む:
+   - **サービス**: `Compute Engine API` を選択
+   - **指標**: `NVIDIA L4 GPUs` と入力して選択
+3. 一覧に `me-central2` リージョンの行が表示される。「上限」が **0** なら引き上げが必要
 
-#### 請求先アカウント
+**引き上げリクエスト:**
 
-GCE (GPU付き) を使うには請求先アカウントが紐づいている必要があります。
-[Cloud コンソール → お支払い](https://console.cloud.google.com/billing) で確認してください。
+4. 対象のクォータ行のチェックボックスをオンにする
+5. ページ上部の **「割り当てを編集」** をクリック
+6. 右側パネルで **「新しい上限」に `1`** を入力
+7. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
+8. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
+
+> 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
+
+**CLI で確認する場合:**
+
+```bash
+# リージョンのクォータを確認 (NVIDIA_L4_GPUS の行を探す)
+gcloud compute regions describe me-central2 \
+  --project YOUR_PROJECT_ID \
+  --format="table(quotas.metric,quotas.limit,quotas.usage)" \
+  | grep -i nvidia
+```
 
 ### 1. VM 構築 (ローカルから一発)
 
