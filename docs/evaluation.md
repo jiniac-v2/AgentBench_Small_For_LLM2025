@@ -1,6 +1,6 @@
 # 評価実行
 
-環境構築が完了していること: [ローカル](setup-local.md) / [GCP](setup-gcp.md)
+環境構築が完了していること: [ローカル環境構築](setup-local.md) / [GCP環境構築](setup-gcp.md)
 
 ## モデル切替
 
