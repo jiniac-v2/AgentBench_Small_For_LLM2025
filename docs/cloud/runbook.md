@@ -107,6 +107,7 @@ python3 -m src.analysis -o outputs -s analysis
 | `agent_validation.csv` | エージェント別バリデーション |
 | `task_validation.csv` | タスク別バリデーション |
 
+何もオプションをつけなければ一番新しい日付のログを対象にします  
 `-t` オプションで集計対象の時間範囲を指定できます:
 
 ```bash
