@@ -162,6 +162,8 @@ sudo journalctl -u agentbench-vllm -n 50
 sudo journalctl -u agentbench-vllm -n 100 -f
 ```
 
+>NOTE: vLLMはsystemdでサービス化しており，最後にswith-model.shで変更したモデルがデフォルトで立ち上がるようになってます．
+
 ### vLLM の手動再起動
 
 ```bash
