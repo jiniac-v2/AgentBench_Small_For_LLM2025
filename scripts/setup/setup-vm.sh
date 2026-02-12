@@ -130,6 +130,8 @@ else
 fi
 if [ -n "$ALFWORLD_DATA_SRC" ]; then
   echo "  Linking alfworld runtime data from ${ALFWORLD_DATA_SRC}..."
+  # リンク先データを全ユーザーから読めるようにする
+  chmod -R a+rX "${ALFWORLD_DATA_SRC}"
   for subdir in logic json_2.1.1 detectors; do
     if [ -d "${ALFWORLD_DATA_SRC}/${subdir}" ]; then
       if [ -L "${APP_DIR}/data/alfworld/${subdir}" ] || [ ! -e "${APP_DIR}/data/alfworld/${subdir}" ]; then
