@@ -174,6 +174,8 @@ sudo bash scripts/setup/setup-systemd.sh
 systemctl status agentbench-vllm
 ```
 
+> vLLMは立ち上げに時間がかかるので，マシン再起動後しばらく時間を置いてから評価を走らせましょう．
+
 ## 次のステップ
 
 [クラウド評価の実行](runbook.md) に進んでください。
