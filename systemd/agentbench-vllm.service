@@ -8,7 +8,7 @@ Type=simple
 EnvironmentFile=/opt/agentbench/.env
 ExecStartPre=-/usr/bin/docker rm -f vllm-server
 ExecStart=/usr/bin/docker run --rm --name vllm-server \
-  --gpus all --ipc=host \
+  --runtime nvidia --gpus all --ipc=host \
   -p 8000:8000 \
   -v /root/.cache/huggingface:/root/.cache/huggingface \
   -e HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN} \
