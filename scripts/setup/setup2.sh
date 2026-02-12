@@ -71,14 +71,11 @@ VLLM_MODEL=${VLLM_MODEL}
 HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
 EOF
 
-# agent config のモデル名を置換 (インデントされた model: 行のみ)
-sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" "${APP_DIR}/configs/agents/api_agents.yaml"
-sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
+# api_agents.yaml は ${VLLM_MODEL} プレースホルダのまま使う
+# ConfigLoader が .env から自動展開するため sed 不要
 
 echo "  .env:"
 cat "${APP_DIR}/.env"
-echo "  Agent config:"
-cat "${APP_DIR}/configs/agents/api_agents.yaml"
 
 # ============================================================
 # 3. Docker イメージの pull
