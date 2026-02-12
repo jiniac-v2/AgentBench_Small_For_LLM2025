@@ -17,7 +17,6 @@ esac
 # --- 5000 番台のポートを掃除 ---
 PIDS=$(lsof -ti :5000-5010 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
-  echo "Killing existing processes on ports 5000-5010..."
   echo "$PIDS" | xargs kill 2>/dev/null || true
   sleep 1
   # まだ残っていれば SIGKILL
@@ -28,5 +27,4 @@ if [ -n "$PIDS" ]; then
   fi
 fi
 
-echo "Starting task server (config: $CONFIG)"
 exec python3 -m src.start_task -a --config "$CONFIG"
