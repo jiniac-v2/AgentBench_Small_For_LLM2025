@@ -89,6 +89,14 @@ python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alf
 echo "  All dependencies verified."
 
 # ============================================================
+# 5. root で作られたファイルの所有権を戻す
+# ============================================================
+echo "Fixing file ownership for ${ACTUAL_USER}..."
+chown -R "${ACTUAL_USER}:${ACTUAL_USER}" "${APP_DIR}"
+# alfworld-download が root で /tmp/alfworld に書くことがある
+[ -d /tmp/alfworld ] && rm -rf /tmp/alfworld
+
+# ============================================================
 # 完了
 # ============================================================
 echo ""
