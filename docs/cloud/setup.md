@@ -105,7 +105,7 @@ region       = "asia-northeast1"    # Step 5 で確認したリージョン
 zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
-git_branch   = "main"              # VM にクローンするブランチ
+git_branch   = ""              # VM にクローンするブランチ(現在:kit_v0.2)
 ```
 
 ```bash
