@@ -1,57 +1,9 @@
 import json
 import os
-import re
 from copy import deepcopy
 from typing import Any, Dict, Set
 
 import yaml
-
-
-# --- BEGIN CUSTOM: .env loader + environment variable expansion ---
-_ENV_VAR_PATTERN = re.compile(r"\$\{(\w+)(?::-(.*?))?\}")
-
-
-def _load_dotenv(path: str = ".env") -> None:
-    """Read a .env file and inject into os.environ (won't overwrite existing vars)."""
-    for candidate in [path, os.path.join(os.getcwd(), path)]:
-        if os.path.isfile(candidate):
-            with open(candidate) as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip().strip("\"'")
-                    os.environ.setdefault(key, value)
-            return
-
-
-def _expand_env_vars(value: str) -> str:
-    """Expand ${VAR} and ${VAR:-default} in a string using os.environ."""
-    def _replace(m):
-        var_name = m.group(1)
-        default = m.group(2)  # None if no :- was specified
-        result = os.environ.get(var_name)
-        if result is not None:
-            return result
-        if default is not None:
-            return default
-        return m.group(0)  # leave as-is if not found and no default
-
-    return _ENV_VAR_PATTERN.sub(_replace, value)
-
-
-def expand_env_in_config(config):
-    """Recursively expand ${VAR} references in all string values."""
-    if isinstance(config, dict):
-        return {k: expand_env_in_config(v) for k, v in config.items()}
-    elif isinstance(config, list):
-        return [expand_env_in_config(v) for v in config]
-    elif isinstance(config, str) and "${" in config:
-        return _expand_env_vars(config)
-    return config
-# --- END CUSTOM: .env loader + environment variable expansion ---
 
 
 def deep_merge(base_item, new_item):
@@ -74,9 +26,6 @@ class ConfigLoader:
     def __init__(self) -> None:
         self.loading: Set[str] = set()
         self.loaded: Dict[str, Any] = dict()
-        # --- BEGIN CUSTOM: load .env once on init ---
-        _load_dotenv()
-        # --- END CUSTOM: load .env once on init ---
 
     def load_from(self, path) -> Dict:
         path = os.path.realpath(path)
@@ -102,10 +51,7 @@ class ConfigLoader:
             raise e
         self.loading.remove(path)
         self.loaded[path] = config
-        # --- BEGIN CUSTOM: expand ${VAR} after all parsing ---
-        result = self.parse_default_and_overwrite(deepcopy(config))
-        return expand_env_in_config(result)
-        # --- END CUSTOM: expand ${VAR} after all parsing ---
+        return self.parse_default_and_overwrite(deepcopy(config))
 
     def parse_imports(self, path, raw_config):
         raw_config = deepcopy(raw_config)

@@ -7,18 +7,21 @@
 ## Step 1: モデル切替
 
 ```bash
-# モデル切替 (.env 更新 → vLLM 再起動)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh <model-name> [hf-token]
+# switch-model.sh を編集してモデル名・HFトークンを設定
+vim ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
-
-例:
 
 ```bash
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh Qwen/Qwen2.5-7B-Instruct
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh nakashi104/Qwen2.5-7B-Instruct hf_xxxx
+# ---- ここを編集 ----
+VLLM_MODEL="your-org/your-model"
+HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
+# ---------------------
 ```
 
-スクリプトの編集は不要です。モデル名は `.env` に書き込まれ、`api_agents.yaml` の `${VLLM_MODEL}` が実行時に自動展開されます。
+```bash
+# モデル切替 (.env + config 更新 → サービス再起動)
+sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
+```
 
 ---
 
