@@ -124,11 +124,7 @@ SSH で VM に接続します。接続方法は2つあります:
 - **方法 A**: `gcloud compute ssh` コマンド（すぐ使える）
 - **方法 B**: VSCode Remote - SSH（IDE 機能をフル活用したい場合）
 
-詳細は [VM 接続方法](#vm-接続方法) を参照してください。ここでは方法 A で進めます。
-
-```bash
-gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-```
+詳細は [VM 接続方法](#vm-接続方法) を参照してください．方法Bを推奨します．
 
 ## Step 8: セットアップスクリプト
 
