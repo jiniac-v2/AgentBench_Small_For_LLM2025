@@ -17,6 +17,7 @@ esac
 # --- 5000 番台のポートを掃除 ---
 PIDS=$(lsof -ti :5000-5010 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
+  echo "Killing existing processes on ports 5000-5010: $PIDS"
   echo "$PIDS" | xargs kill 2>/dev/null || true
   sleep 1
   # まだ残っていれば SIGKILL
