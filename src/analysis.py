@@ -56,6 +56,28 @@ VALIDATION_MAP_FUNC = {
     ),
 }
 
+# --- BEGIN CUSTOM: normalize validation keys ---
+# overall.json の validation キーは SampleStatus の value (e.g. "completed") だが、
+# VALIDATION_MAP_FUNC は name (e.g. "COMPLETED") を期待する。両方に対応する。
+_STATUS_VALUE_TO_NAME = {
+    "completed": "COMPLETED",
+    "agent context limit": "AGENT_CONTEXT_LIMIT",
+    "agent validation failed": "AGENT_VALIDATION_FAILED",
+    "agent invalid action": "AGENT_INVALID_ACTION",
+    "task limit reached": "TASK_LIMIT_REACHED",
+    "unknown": "UNKNOWN",
+    "task error": "TASK_ERROR",
+}
+
+
+def _normalize_validation(validation_dict: dict) -> dict:
+    """Convert SampleStatus value keys to name keys if needed."""
+    normalized = {}
+    for k, v in validation_dict.items():
+        normalized[_STATUS_VALUE_TO_NAME.get(k, k)] = v
+    return normalized
+# --- END CUSTOM: normalize validation keys ---
+
 
 def analyze_output(config: str, output: str, since_timestamp: float):
     """
@@ -132,11 +154,17 @@ def analyze_output(config: str, output: str, since_timestamp: float):
             with open(overall_dict[agent][task]["file"], "r", encoding="utf-8") as f:
                 overall_dict[agent][task]["overall"] = json.load(f)
             if "validation" in overall_dict[agent][task]["overall"]:
+                # --- BEGIN CUSTOM: normalize validation keys before lookup ---
+                raw_validation = _normalize_validation(
+                    overall_dict[agent][task]["overall"]["validation"]
+                )
+                # --- END CUSTOM: normalize validation keys before lookup ---
                 overall_dict[agent][task]["overall"]["validation"] = {
-                    validation: VALIDATION_MAP_FUNC[validation](
-                        overall_dict[agent][task]["overall"]["validation"]
-                    )
+                    validation: VALIDATION_MAP_FUNC[validation](raw_validation)
                     for validation in VALIDATION_MAP_FUNC
+                    if any(k in raw_validation for k in ["COMPLETED", "AGENT_CONTEXT_LIMIT",
+                           "AGENT_VALIDATION_FAILED", "AGENT_INVALID_ACTION",
+                           "UNKNOWN", "TASK_ERROR", "TASK_LIMIT_REACHED"])
                 }
                 for validation in overall_dict[agent][task]["overall"]["validation"]:
                     if validation not in validation_names:
