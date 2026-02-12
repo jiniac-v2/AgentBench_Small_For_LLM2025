@@ -136,6 +136,8 @@ gcloud compute scp --recurse \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
+> VSCodeの方はoutputとanalysis配下のデータをDLでいいです
+
 ---
 
 ## Step 6: タスクサーバー停止
