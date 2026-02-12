@@ -152,9 +152,12 @@ sudo bash scripts/setup/setup-vm.sh
 完了後、docker グループの反映のため再ログインが必要です:
 
 ```bash
-exit
 # SSH で再接続
+exit
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+
+# または，
+newgrp docker
 ```
 
 ## Step 9: systemd セットアップ
@@ -187,7 +190,7 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 ### 方法 B: VSCode Remote - SSH (推奨)
 
-VSCode の **Remote - SSH** 拡張機能で VM に接続し、エクスプローラー・ターミナル・拡張機能などフル IDE 機能をリモートで利用できます。
+後ほどターミナルを複数使うので，こちらを推奨
 
 #### 前提
 
@@ -240,20 +243,7 @@ For example, try running:
 
 いずれの方法でも、新しい VSCode ウィンドウが開き VM に接続されます。
 
-#### リモート開発
-
-接続が完了すると、VSCode がリモート VM 上で動作するモードになります。
-ローカル開発と同じ操作感で VM 上のファイルを扱えます。
-
-- **フォルダを開く**: **ファイル → フォルダを開く** → `~/AgentBench_Small_For_LLM2025` を指定
-- **エクスプローラー**: 左サイドバーでファイルツリーを閲覧・操作
-- **ファイル編集**: 通常どおりコードを編集・保存 (変更は即座に VM に反映)
-- **ターミナル**: `` Ctrl+` `` で VM 上のシェルを直接操作
-- **拡張機能**: Python 等の拡張機能はリモート側にインストールされ、VM 上で実行される
-- **Git**: ソース管理タブで VM 上のリポジトリを操作可能
-
 #### SSH config の削除
-
 不要になったら自動生成された設定を削除できます:
 
 ```bash
