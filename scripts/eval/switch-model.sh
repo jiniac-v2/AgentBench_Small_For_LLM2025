@@ -40,6 +40,7 @@ cat "${APP_DIR}/configs/agents/api_agents.yaml"
 
 # 3. Restart vLLM
 echo "[3/3] Restarting vLLM..."
+systemctl daemon-reload            # .env の変更を systemd に反映
 systemctl restart agentbench-vllm
 
 echo ""
