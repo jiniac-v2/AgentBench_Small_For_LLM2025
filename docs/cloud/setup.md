@@ -134,9 +134,11 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 VM 上で以下を実行します。
 
+### Part 1 (要 sudo)
+
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-sudo bash scripts/setup/setup-vm.sh
+sudo bash scripts/setup/setup-vm1.sh
 ```
 
 処理内容:
@@ -145,9 +147,6 @@ sudo bash scripts/setup/setup-vm.sh
 2. NVIDIA Container Toolkit のインストール
 3. ユーザーを docker グループに追加
 4. Python 依存パッケージのインストール
-5. ALFWorld ランタイムデータのリンク (`logic/`, `json_2.1.1/`, `detectors/`)
-6. `.env` / agent config の生成
-7. Docker イメージの pull (vLLM, MySQL)
 
 完了後、docker グループの反映のため再ログインが必要です:
 
@@ -159,6 +158,19 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 # または，
 newgrp docker
 ```
+
+### Part 2 (sudo 不要)
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+bash scripts/setup/setup-vm2.sh
+```
+
+処理内容:
+
+1. ALFWorld ランタイムデータのダウンロード + リンク (`logic/`, `json_2.1.1/`, `detectors/`)
+2. `.env` / agent config の生成
+3. Docker イメージの pull (vLLM, MySQL)
 
 ## Step 9: systemd セットアップ
 

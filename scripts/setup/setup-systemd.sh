@@ -8,7 +8,7 @@ set -e
 #   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-systemd.sh
 #
 # Prerequisites:
-#   - setup-vm.sh が完了済み
+#   - setup-vm1.sh / setup-vm2.sh が完了済み
 #
 # 処理内容:
 #   vLLM サービスを systemd に登録し、VM 起動時に自動起動するようにする。
