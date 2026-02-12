@@ -2,8 +2,8 @@
 
 [AgentBench](https://github.com/THUDM/AgentBench) の小規模版です。以下の2タスクのみを含みます:
 
-- **DBBench** - データベースクエリタスク (80 tasks)
-- **ALFWorld** - 家庭内の対話的タスク (134 tasks)
+- **DBBench** - データベースクエリタスク (150 tasks)
+- **ALFWorld** - 家庭内の対話的タスク (50 tasks)
 
 推論は vLLM (OpenAI互換API) 経由で実行します。
 
