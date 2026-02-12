@@ -87,10 +87,39 @@ python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/
 
 ---
 
-## Step 4: 結果確認
+## Step 4: 結果集計
+
+評価が完了したら、結果を集計してスコアを算出します。
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+python3 -m src.analysis -o outputs -s analysis
+```
+
+`analysis/` ディレクトリに以下が出力されます:
+
+| ファイル | 内容 |
+|---|---|
+| `result.json` / `result.yaml` | 全詳細 |
+| `summary.csv` | エージェント × タスクの主要メトリクス |
+| `overall_score.csv` | 総合スコア (oa) |
+| `agent_validation.csv` | エージェント別バリデーション |
+| `task_validation.csv` | タスク別バリデーション |
+
+`-t` オプションで集計対象の時間範囲を指定できます:
+
+```bash
+# 直近1日分だけ集計
+python3 -m src.analysis -o outputs -s analysis -t 1d
+```
+
+---
+
+## Step 5: 結果確認
 
 ```bash
 ls ~/AgentBench_Small_For_LLM2025/outputs/
+cat ~/AgentBench_Small_For_LLM2025/analysis/overall_score.csv
 ```
 
 ローカルにコピー:
@@ -99,11 +128,15 @@ ls ~/AgentBench_Small_For_LLM2025/outputs/
 gcloud compute scp --recurse \
   agentbench-eval:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
+
+gcloud compute scp --recurse \
+  agentbench-eval:~/AgentBench_Small_For_LLM2025/analysis/ ./analysis/ \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
 ---
 
-## Step 5: タスクサーバー停止
+## Step 6: タスクサーバー停止
 
 タスクサーバーを起動したターミナルで `Ctrl+C` を押してください。
 
