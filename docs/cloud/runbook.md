@@ -8,13 +8,13 @@
 
 ```bash
 # switch-model.sh を編集してモデル名・HFトークンを設定
-vi ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
+vim ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
 
 ```bash
 # ---- ここを編集 ----
 VLLM_MODEL="your-org/your-model"
-HF_TOKEN="hf_xxxxxxxxxxxxx"    # private モデルの場合
+HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
 # ---------------------
 ```
 
