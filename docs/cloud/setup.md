@@ -146,7 +146,8 @@ sudo bash scripts/setup/setup1.sh
 # docker グループ反映のため再ログイン
 exit
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-# または: newgrp docker
+# または以下コマンド
+newgrp docker
 
 # (2) ALFWorld データ / .env / Docker イメージ pull
 cd ~/AgentBench_Small_For_LLM2025
