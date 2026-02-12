@@ -26,6 +26,7 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ---
 
 ## Step 2: タスクサーバー起動
+> ここはVMを落としていない場合は毎回やらなくてもいい．連続でモデル評価したい場合はスキップしてください
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
