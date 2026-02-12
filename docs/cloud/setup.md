@@ -4,6 +4,7 @@
 
 - `gcloud` CLI インストール済み — [インストール方法](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=ja)
 - `terraform` >= 1.0 インストール済み — [インストール方法](https://developer.hashicorp.com/terraform/install)
+> winの方はWSLでやったほうがいいかも
 
 ## Step 1: 認証・プロジェクト設定
 
