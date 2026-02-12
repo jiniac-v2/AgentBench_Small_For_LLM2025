@@ -120,6 +120,9 @@ bash scripts/infra/setup-gcp.sh
 1. `terraform apply` (VM 作成)
 2. startup script が自動で clone (private リポの場合は Secret Manager の PAT を使用)
 
+> 基本的にここで失敗しそうな原因はリージョンガチャした結果，そのリージョン/ゾーンは使えないよ，と言われたパターンが大抵です．
+> また別のリージョン/ゾーンに変えてみてください．
+
 ## Step 7: VM に接続
 
 SSH で VM に接続します。接続方法は2つあります:
