@@ -178,9 +178,7 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 ### 方法 B: VSCode Remote - SSH (推奨)
 
-後ほどターミナルを複数使うので，こちらを推奨（ターミナルの複製方法は下の GIF を参考）
-
-> ![ターミナル複製](../../assets/ターミナル複製.gif)
+後ほどターミナルを複数使うので，こちらを推奨
 
 #### 前提
 
