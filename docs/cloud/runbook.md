@@ -22,8 +22,8 @@ HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
 # モデル切替 (.env + config 更新 → サービス再起動)
 sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
-> いつものことですがvLLMを再起したあとは少し時間おきましょう
-> vLLM の状態確認・監視で待っておこう
+> いつものことですがvLLMを再起したあとは少し時間おきましょう  
+> vLLM の状態確認・監視 を参考に待っておこう
 
 ---
 
