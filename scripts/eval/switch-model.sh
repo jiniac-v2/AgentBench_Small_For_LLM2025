@@ -29,18 +29,10 @@ if [ -z "$1" ]; then
 fi
 
 VLLM_MODEL="$1"
+HF_TOKEN="${2:-}"
 
 # Auto-detect APP_DIR from script location
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-
-# HF_TOKEN: 引数 > 既存 .env > 空
-if [ -n "${2:-}" ]; then
-  HF_TOKEN="$2"
-elif [ -f "${APP_DIR}/.env" ]; then
-  HF_TOKEN=$(grep -oP '^HUGGING_FACE_HUB_TOKEN=\K.*' "${APP_DIR}/.env" || true)
-else
-  HF_TOKEN=""
-fi
 
 echo "=== Switching to model: ${VLLM_MODEL} ==="
 echo "APP_DIR: ${APP_DIR}"
