@@ -17,6 +17,7 @@ gcloud auth application-default login    # Terraform 用
 gcloud projects list
 gcloud config set project YOUR_PROJECT_ID
 ```
+> 事前にプロジェクトを作成しておいてください
 
 ## Step 2: 請求先アカウントの確認
 
