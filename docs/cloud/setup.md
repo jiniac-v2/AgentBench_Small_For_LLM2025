@@ -101,12 +101,15 @@ vi terraform/terraform.tfvars    # project_id, region, zone を設定
 `terraform.tfvars`:
 ```hcl
 project_id   = "your-project-id"    # 必須
-region       = "asia-northeast1"    # Step 5 で確認したリージョン
-zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン
+region       = "asia-northeast1"    # Step 5 で確認したリージョン. 過疎ってそうなリージョンを選択することを推奨
+zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン．過疎ってそうなゾーンを選択することを推奨．
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
 git_branch   = ""              # VM にクローンするブランチ(現在:kit_v0.2)
 ```
+
+> 基本的に本キットでは，初期構築を１度やればあとはVMを停止→再起動させても同じ作業をしなくて済むようになってます．
+> が，GCPの仕様上，GPUが枯渇しているリージョン・ゾーンで停止してしまうと，再起動時にGPUが掴めなくてマシン作り直しになることがあります．
 
 ```bash
 # VM 作成 + 構築完了待ち + リポジトリ clone
