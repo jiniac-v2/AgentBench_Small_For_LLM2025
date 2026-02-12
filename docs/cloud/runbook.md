@@ -193,3 +193,9 @@ sudo systemctl status agentbench-vllm
 sudo journalctl -u agentbench-vllm -n 50
 docker ps | grep vllm
 ```
+
+---
+
+## 大規模評価 (複数モデル一括実行)
+
+> **TBD** — 複数モデルを順次・並列で回すスクリプトを `script/massive_eval/` に整備予定。
