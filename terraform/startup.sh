@@ -5,7 +5,7 @@ set -e
 # AgentBench VM Startup Script
 #
 # VM 起動時に root で実行される。リポジトリの clone のみ行う。
-# Docker 等のセットアップは SSH 後に setup-vm1.sh / setup-vm2.sh を手動実行する。
+# Docker 等のセットアップは SSH 後に setup-vm-root.sh / setup-vm.sh を手動実行する。
 # ============================================================
 
 PROVISION_MARKER="/var/log/agentbench-provisioned"
@@ -60,4 +60,4 @@ fi
 # ============================================================
 touch "$PROVISION_MARKER"
 log "=== Startup script COMPLETE ==="
-log "Next: SSH in and run  sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm1.sh"
+log "Next: SSH in and run  sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm-root.sh"

@@ -2,13 +2,13 @@
 set -e
 
 # ============================================================
-# AgentBench VM セットアップ Part 2 (sudo 不要)
+# AgentBench VM セットアップ (sudo 不要)
 #
 # Usage:
-#   bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm2.sh
+#   bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
 #
 # Prerequisites:
-#   - setup-vm1.sh が完了済み
+#   - setup-vm-root.sh が完了済み
 #   - docker グループ反映済み (再ログイン or newgrp docker)
 #
 # 処理内容:
@@ -25,7 +25,7 @@ HF_TOKEN="${HF_TOKEN:-}"
 # Auto-detect APP_DIR from script location
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
-echo "=== AgentBench VM Setup  Part 2 (user) ==="
+echo "=== AgentBench VM Setup ==="
 echo "APP_DIR:    ${APP_DIR}"
 echo "User:       $(whoami)"
 echo "VLLM_MODEL: ${VLLM_MODEL}"
@@ -101,7 +101,7 @@ echo "  Docker images pulled."
 # ============================================================
 echo ""
 echo "=========================================="
-echo " Part 2 完了! VM セットアップ完了!"
+echo " VM セットアップ完了!"
 echo "=========================================="
 echo ""
 echo "次のステップ: systemd サービスのインストール"

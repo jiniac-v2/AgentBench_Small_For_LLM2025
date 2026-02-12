@@ -2,10 +2,10 @@
 set -e
 
 # ============================================================
-# AgentBench VM セットアップ Part 1 (要 sudo)
+# AgentBench VM セットアップ — root 権限が必要な処理のみ
 #
 # Usage:
-#   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm1.sh
+#   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm-root.sh
 #
 # 処理内容:
 #   1. Docker Engine のインストール
@@ -14,8 +14,8 @@ set -e
 #   4. Python 依存パッケージのインストール
 #
 # 完了後、docker グループ反映のため再ログインし、
-# Part 2 を sudo なしで実行:
-#   bash scripts/setup/setup-vm2.sh
+# setup-vm.sh を sudo なしで実行:
+#   bash scripts/setup/setup-vm.sh
 # ============================================================
 
 # Auto-detect APP_DIR from script location
@@ -24,7 +24,7 @@ APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 # Detect the user who invoked sudo (or current user)
 ACTUAL_USER="${SUDO_USER:-$(whoami)}"
 
-echo "=== AgentBench VM Setup  Part 1 (root) ==="
+echo "=== AgentBench VM Setup (root) ==="
 echo "APP_DIR: ${APP_DIR}"
 echo "User:    ${ACTUAL_USER}"
 echo ""
@@ -101,13 +101,13 @@ echo "  All dependencies verified."
 # ============================================================
 echo ""
 echo "=========================================="
-echo " Part 1 完了!"
+echo " root セットアップ完了!"
 echo "=========================================="
 echo ""
 echo "重要: docker グループの反映には再ログインが必要です。"
 echo "  exit して SSH で再接続するか、以下を実行:"
 echo "  newgrp docker"
 echo ""
-echo "次のステップ: Part 2 (sudo なし) を実行"
-echo "  bash ${APP_DIR}/scripts/setup/setup-vm2.sh"
+echo "次のステップ: setup-vm.sh を sudo なしで実行"
+echo "  bash ${APP_DIR}/scripts/setup/setup-vm.sh"
 echo ""

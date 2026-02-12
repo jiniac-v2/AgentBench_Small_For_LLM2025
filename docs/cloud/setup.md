@@ -134,19 +134,14 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 VM 上で以下を実行します。
 
-### Part 1 (要 sudo)
+### root セットアップ (要 sudo)
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-sudo bash scripts/setup/setup-vm1.sh
+sudo bash scripts/setup/setup-vm-root.sh
 ```
 
-処理内容:
-
-1. Docker Engine のインストール
-2. NVIDIA Container Toolkit のインストール
-3. ユーザーを docker グループに追加
-4. Python 依存パッケージのインストール
+Docker, NVIDIA Container Toolkit, docker グループ, Python 依存パッケージをインストールします。
 
 完了後、docker グループの反映のため再ログインが必要です:
 
@@ -159,11 +154,11 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 newgrp docker
 ```
 
-### Part 2 (sudo 不要)
+### セットアップ (sudo 不要)
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-bash scripts/setup/setup-vm2.sh
+bash scripts/setup/setup-vm.sh
 ```
 
 処理内容:
