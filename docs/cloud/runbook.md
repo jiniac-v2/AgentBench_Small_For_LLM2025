@@ -24,6 +24,7 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
 > いつものことですがvLLMを再起したあとは少し時間おきましょう  
 > vLLM の状態確認・監視 を参考に待っておこう
+> VSCodeだと8000番ポートが使えるようになったという通知が来るのでそれで
 
 ---
 
