@@ -23,7 +23,7 @@ HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
 sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 ```
 > いつものことですがvLLMを再起したあとは少し時間おきましょう
-> ## vLLM の状態確認・監視で待っておこう
+> vLLM の状態確認・監視で待っておこう
 
 ---
 
