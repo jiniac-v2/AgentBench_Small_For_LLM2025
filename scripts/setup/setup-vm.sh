@@ -111,10 +111,11 @@ echo "  All dependencies verified."
 
 # alfworld ランタイムデータのダウンロード + リンク
 ALFWORLD_PKG_DATA=$(python3 -c "import os, alfworld; print(os.path.join(os.path.dirname(alfworld.__file__), 'data'))")
-ALFWORLD_CACHE_DATA="${HOME}/.cache/alfworld"
+ACTUAL_USER_HOME=$(eval echo "~${ACTUAL_USER}")
+ALFWORLD_CACHE_DATA="${ACTUAL_USER_HOME}/.cache/alfworld"
 if [ ! -d "${ALFWORLD_PKG_DATA}/logic" ] && [ ! -d "${ALFWORLD_CACHE_DATA}/logic" ]; then
-  echo "  Downloading alfworld runtime data..."
-  alfworld-download 2>&1 || {
+  echo "  Downloading alfworld runtime data (as ${ACTUAL_USER})..."
+  su - "${ACTUAL_USER}" -c "alfworld-download" 2>&1 || {
     echo "  WARNING: alfworld-download failed. You may need to run it manually."
   }
 fi
