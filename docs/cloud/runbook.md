@@ -27,26 +27,13 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ## Step 2: タスクサーバー起動
 
-前回のプロセスが残っている場合は先に停止します:
-
-```bash
-lsof -ti :5001-5010 | xargs -r kill
-```
-
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-python3 -m src.start_task -a --config configs/start_task.yaml
+bash scripts/eval/run-task-server.sh
 ```
 
-- `-a` : Controller (port 5000) を自動起動
-- `--config` : 起動するワーカーの構成を指定
-
+5000 番台のポートに残っているプロセスを自動で停止してからサーバーを起動します。
 フォアグラウンドで動き続けるため、**別のターミナル**で Step 3 以降を実行してください。
-
-> vLLM が `localhost:8000` で応答していることを事前に確認:
-> ```bash
-> curl -sf http://localhost:8000/v1/models | python3 -m json.tool
-> ```
 
 ---
 
@@ -78,7 +65,7 @@ ALFWorld / DBBench を個別に動かしたい場合は、`--config` でデバ�
 
 ```bash
 # タスクサーバー (別ターミナル)
-python3 -m src.start_task -a --config configs/start_task_alf.yaml
+bash scripts/eval/run-task-server.sh alf
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
@@ -88,7 +75,7 @@ python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs
 
 ```bash
 # タスクサーバー (別ターミナル)
-python3 -m src.start_task -a --config configs/start_task_db.yaml
+bash scripts/eval/run-task-server.sh db
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
