@@ -64,7 +64,7 @@ class ALFWorld(Task):
         overall = {
             "total": len([config for config in results if config]),
             "pass": len([config for config in results if
-                         (config and config.result and int(config.result.get("result", 0) == 1))]),
+                         (config and isinstance(config.result, dict) and config.result.get("result", 0) == 1)]),
         }
         overall["wrong"] = overall["total"] - overall["pass"]
         overall["success_rate"] = overall["pass"] / overall["total"] if overall["total"] else 0

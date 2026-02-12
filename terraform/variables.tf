@@ -29,6 +29,12 @@ variable "disk_size_gb" {
   default     = 200
 }
 
+variable "git_repo" {
+  description = "Git repository URL (HTTPS) to clone on the VM"
+  type        = string
+  default     = "https://github.com/nshiki08/AgentBench_Small_For_LLM2025"
+}
+
 variable "git_branch" {
   description = "Git branch to clone on the VM"
   type        = string

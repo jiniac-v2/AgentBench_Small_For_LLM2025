@@ -2,16 +2,16 @@
 set -e
 
 # ============================================================
-# Model Switch Script (GCP)
+# Model Switch Script
 #
 # Usage:
 #   1. このファイルの VLLM_MODEL, HF_TOKEN を編集
-#   2. sudo bash ~/AgentBench_Small_For_LLM2025/scripts/switch-model.sh
+#   2. sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 #
 # 処理内容:
 #   1. .env にモデル名・HFトークンを書き込み
 #   2. api_agents.yaml のモデル名を更新
-#   3. vLLM + 全サービスを再起動
+#   3. vLLM を再起動
 # ============================================================
 
 # ---- ここを編集 ----
@@ -20,7 +20,7 @@ HF_TOKEN=""
 # ---------------------
 
 # Auto-detect APP_DIR from script location
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 echo "=== Switching to model: ${VLLM_MODEL} ==="
 echo "APP_DIR: ${APP_DIR}"
@@ -32,23 +32,21 @@ VLLM_MODEL=${VLLM_MODEL}
 HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
 EOF
 
-# 2. Update agent config
+# 2. Update agent config (インデントされた model: 行のみ)
 echo "[2/3] Updating agent config..."
-sed -i "s|model:.*|model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" "${APP_DIR}/configs/agents/api_agents.yaml"
 echo "  Agent config:"
 cat "${APP_DIR}/configs/agents/api_agents.yaml"
 
-# 3. Restart all services
-echo "[3/3] Restarting services..."
+# 3. Restart vLLM
+echo "[3/3] Restarting vLLM..."
+systemctl daemon-reload            # .env の変更を systemd に反映
 systemctl restart agentbench-vllm
-systemctl restart agentbench-controller
-systemctl restart agentbench-worker-dbbench
-systemctl restart agentbench-worker-alfworld
 
 echo ""
 echo "=== Model switched to: ${VLLM_MODEL} ==="
 echo ""
 echo "評価実行:"
 echo "  cd ${APP_DIR}"
-echo "  python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log"
+echo "  bash scripts/eval/run.sh"
 echo ""

@@ -29,11 +29,19 @@
 
 ## ドキュメント
 
+### ローカル
+
 | ドキュメント | 内容 |
 |---|---|
-| [ローカル環境構築](docs/setup-local.md) | ローカル環境での Python + Docker セットアップ |
-| [GCP環境構築](docs/setup-gcp.md) | GCP VM の構築・接続・管理 (Terraform + gcloud) |
-| [評価実行](docs/evaluation.md) | モデル評価の実行・モデル切り替え・結果取得 |
+| [環境構築](docs/local/setup.md) | ローカルマシンのセットアップ |
+| [評価の実行](docs/local/runbook.md) | ローカル評価の手順 |
+
+### クラウド (GCP)
+
+| ドキュメント | 内容 |
+|---|---|
+| [環境構築](docs/cloud/setup.md) | GCP VM の構築・接続・管理 |
+| [評価の実行](docs/cloud/runbook.md) | クラウド評価の手順・監視・トラブルシューティング |
 
 ## Citation
 

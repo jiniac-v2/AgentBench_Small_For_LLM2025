@@ -3,7 +3,6 @@ import: definition.yaml
 concurrency:
   task:
     dbbench-std: 1
-    alfworld-std: 5
   agent:
     vllm-model: 5
 
@@ -12,6 +11,5 @@ assignments:
       - vllm-model
     task:
       - dbbench-std
-      - alfworld-std
 
 output: "outputs/{TIMESTAMP}"

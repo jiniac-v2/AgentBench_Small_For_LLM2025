@@ -3,4 +3,3 @@ definition:
 
 start:
   dbbench-std: 1
-  alfworld-std: 5

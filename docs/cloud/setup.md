@@ -1,9 +1,10 @@
-# 環境構築: GCP
+# クラウド環境構築 (GCP)
 
 ## 前提条件
 
 - `gcloud` CLI インストール済み — [インストール方法](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=ja)
 - `terraform` >= 1.0 インストール済み — [インストール方法](https://developer.hashicorp.com/terraform/install)
+> winの方はWSLでやったほうがいいかも
 
 ## Step 1: 認証・プロジェクト設定
 
@@ -16,6 +17,7 @@ gcloud auth application-default login    # Terraform 用
 gcloud projects list
 gcloud config set project YOUR_PROJECT_ID
 ```
+> 事前にプロジェクトを作成しておいてください
 
 ## Step 2: 請求先アカウントの確認
 
@@ -80,7 +82,7 @@ for q in json.load(sys.stdin).get('quotas', []):
 4. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
 5. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
 
-> 引き上げには数分〜数日かかる場合があります。承認・却下はメールで通知されます。
+> 引き上げは1分くらいで許可降ります
 
 ## Step 5: 利用可能なゾーンの確認
 
@@ -101,40 +103,78 @@ vi terraform/terraform.tfvars    # project_id, region, zone を設定
 `terraform.tfvars`:
 ```hcl
 project_id   = "your-project-id"    # 必須
-region       = "asia-northeast1"    # Step 5 で確認したリージョン
-zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン
+region       = "asia-northeast1"    # Step 5 で確認したリージョン. 過疎ってそうなリージョンを選択することを推奨
+zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン．過疎ってそうなゾーンを選択することを推奨．
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
-git_branch   = "main"              # VM にクローンするブランチ
+git_branch   = ""              # VM にクローンするブランチ(現在:kit_v0.2)
 ```
 
+> 基本的に本キットでは，初期構築を１度やればあとはVMを停止→再起動させても同じ作業をしなくて済むようになってます．  
+> が，GCPの仕様上，GPUが枯渇しているリージョン・ゾーンで停止してしまうと，再起動時にGPUが掴めなくてマシン作り直しになることがあります．  
+> ある意味，その為にこのようなキットがあるとも
+
 ```bash
-# VM 作成 + SSH 待ち
-bash scripts/setup-gcp.sh
+# VM 作成 + 構築完了待ち + リポジトリ clone
+bash scripts/infra/setup-gcp.sh
 ```
 
 `setup-gcp.sh` は以下を実行します:
 1. `terraform apply` (VM 作成)
-2. SSH 接続待ち
+2. startup script が自動で clone (private リポの場合は Secret Manager の PAT を使用)
 
-## Step 7: VM 環境構築
+> 基本的にここで失敗しそうな原因はリージョンガチャした結果，そのリージョン/ゾーンは使えないよ，と言われたパターンが大抵です．
+> また別のリージョン/ゾーンに変えてみてください．
 
-SSH で VM に接続し、環境構築スクリプトを実行します。
+## Step 7: VM に接続
+
+SSH で VM に接続します。接続方法は2つあります:
+
+- **方法 A**: `gcloud compute ssh` コマンド（すぐ使える）
+- **方法 B**: VSCode Remote - SSH（IDE 機能をフル活用したい場合）
+
+詳細は [VM 接続方法](#vm-接続方法) を参照してください．方法Bを推奨します．
+
+## Step 8: セットアップスクリプト
+
+VM 上で以下を実行します。
 
 ```bash
-# SSH 接続
-gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+cd ~/AgentBench_Small_For_LLM2025
 
-# 環境構築 (VM 上で実行)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup-vm.sh
+# (1) Docker / NVIDIA / Python 依存 の用意(要 sudo)
+sudo bash scripts/setup/setup1.sh
+
+# docker グループ反映のため再ログイン
+exit
+gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
+# または以下コマンド(入り直し面倒なのでこちらを推奨)
+newgrp docker
+
+# (2) ALFWorld データ / .env / Docker イメージ pull の用意
+cd ~/AgentBench_Small_For_LLM2025
+bash scripts/setup/setup2.sh
 ```
 
-`setup-vm.sh` は以下を実行します:
-1. Docker の確認・docker グループ設定
-2. Python 依存パッケージのインストール
-3. `.env` / agent config の生成
-4. Docker イメージの pull (vLLM, MySQL)
-5. systemd サービスのインストール・起動
+## Step 9: systemd セットアップ
+
+VM 再起動時に vLLM を自動起動させます。
+
+```bash
+sudo bash scripts/setup/setup_systemd.sh
+```
+
+確認:
+
+```bash
+systemctl status agentbench-vllm
+```
+
+> vLLMは立ち上げに時間がかかるので，マシン再起動後しばらく時間を置いてから評価を走らせましょう．
+
+## 次のステップ
+
+[クラウド評価の実行](runbook.md) に進んでください。
 
 ---
 
@@ -148,7 +188,7 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 ### 方法 B: VSCode Remote - SSH (推奨)
 
-VSCode の **Remote - SSH** 拡張機能で VM に接続し、エクスプローラー・ターミナル・拡張機能などフル IDE 機能をリモートで利用できます。
+後ほどターミナルを複数使うので，こちらを推奨
 
 #### 前提
 
@@ -201,20 +241,7 @@ For example, try running:
 
 いずれの方法でも、新しい VSCode ウィンドウが開き VM に接続されます。
 
-#### リモート開発
-
-接続が完了すると、VSCode がリモート VM 上で動作するモードになります。
-ローカル開発と同じ操作感で VM 上のファイルを扱えます。
-
-- **フォルダを開く**: **ファイル → フォルダを開く** → `~/AgentBench_Small_For_LLM2025` を指定
-- **エクスプローラー**: 左サイドバーでファイルツリーを閲覧・操作
-- **ファイル編集**: 通常どおりコードを編集・保存 (変更は即座に VM に反映)
-- **ターミナル**: `` Ctrl+` `` で VM 上のシェルを直接操作
-- **拡張機能**: Python 等の拡張機能はリモート側にインストールされ、VM 上で実行される
-- **Git**: ソース管理タブで VM 上のリポジトリを操作可能
-
 #### SSH config の削除
-
 不要になったら自動生成された設定を削除できます:
 
 ```bash
@@ -323,34 +350,6 @@ cd terraform && terraform destroy
 3. ページ上部の **「削除」** ボタンをクリック
 
 > **注意**: Terraform で作成した場合は `terraform destroy` を推奨します (Service Account, Firewall ルールも合わせて削除されます)。
-
-### サービスの状態確認 (SSH 接続後)
-
-VM に SSH 接続した状態で、AgentBench の各サービスを確認できます。
-
-```bash
-# 全サービスの状態を一覧
-sudo systemctl status agentbench-vllm
-sudo systemctl status agentbench-controller
-sudo systemctl status agentbench-worker-dbbench
-sudo systemctl status agentbench-worker-alfworld
-
-# vLLM コンテナの確認
-sudo docker ps | grep vllm
-
-# 各サービスのログ
-sudo journalctl -u agentbench-vllm -n 50
-sudo journalctl -u agentbench-controller -n 50
-```
-
-### サービスの手動再起動
-
-```bash
-sudo systemctl restart agentbench-vllm
-sudo systemctl restart agentbench-controller
-sudo systemctl restart agentbench-worker-dbbench
-sudo systemctl restart agentbench-worker-alfworld
-```
 
 ---
 
