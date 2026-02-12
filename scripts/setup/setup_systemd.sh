@@ -2,17 +2,12 @@
 set -e
 
 # ============================================================
-# vLLM systemd サービスのインストール
+# AgentBench VM セットアップ (3/3)
+#
+# vLLM systemd サービスの登録・自動起動
 #
 # Usage:
-#   sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-systemd.sh
-#
-# Prerequisites:
-#   - setup-vm-root.sh / setup-vm.sh が完了済み
-#
-# 処理内容:
-#   vLLM サービスを systemd に登録し、VM 起動時に自動起動するようにする。
-#   Controller/Workers は run.sh で都度起動する。
+#   sudo bash scripts/setup/setup_systemd.sh
 # ============================================================
 
 # Auto-detect APP_DIR from script location

@@ -13,31 +13,20 @@ git clone https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git
 cd AgentBench_Small_For_LLM2025
 ```
 
-## 2. root セットアップ (要 sudo)
+## 2. セットアップ
 
 ```bash
-sudo bash scripts/setup/setup-vm-root.sh
+# (1) Docker / NVIDIA / Python 依存 (要 sudo)
+sudo bash scripts/setup/setup1.sh
+
+# docker グループ反映のため再ログイン
+newgrp docker   # または exit → 再接続
+
+# (2) ALFWorld データ / .env / Docker イメージ pull
+bash scripts/setup/setup2.sh
 ```
 
-Docker, NVIDIA Container Toolkit, docker グループ, Python 依存パッケージをインストールします。
-
-完了後、docker グループの反映のため再ログインが必要です:
-
-```bash
-exit
-# 再ログイン、または:
-newgrp docker
-```
-
-## 3. セットアップ (sudo 不要)
-
-```bash
-bash scripts/setup/setup-vm.sh
-```
-
-ALFWorld データのリンク、`.env` / agent config 生成、Docker イメージの pull を行います。
-
-> **Note**: systemd (`setup-systemd.sh`) はローカル環境では不要です。
+> **Note**: `setup_systemd.sh` はローカル環境では不要です。
 
 ## 3. vLLM 起動
 

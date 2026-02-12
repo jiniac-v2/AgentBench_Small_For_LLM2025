@@ -2,19 +2,12 @@
 set -e
 
 # ============================================================
-# AgentBench VM セットアップ (sudo 不要)
+# AgentBench VM セットアップ (2/3)
+#
+# ALFWorld データ, .env / agent config, Docker イメージ pull
 #
 # Usage:
-#   bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
-#
-# Prerequisites:
-#   - setup-vm-root.sh が完了済み
-#   - docker グループ反映済み (再ログイン or newgrp docker)
-#
-# 処理内容:
-#   1. ALFWorld ランタイムデータのダウンロード + シンボリックリンク
-#   2. .env / agent config の生成
-#   3. Docker イメージの pull
+#   bash scripts/setup/setup2.sh
 # ============================================================
 
 # ---- 設定 ----
@@ -25,7 +18,7 @@ HF_TOKEN="${HF_TOKEN:-}"
 # Auto-detect APP_DIR from script location
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
-echo "=== AgentBench VM Setup ==="
+echo "=== setup2: ALFWorld / config / Docker images ==="
 echo "APP_DIR:    ${APP_DIR}"
 echo "User:       $(whoami)"
 echo "VLLM_MODEL: ${VLLM_MODEL}"
@@ -101,9 +94,8 @@ echo "  Docker images pulled."
 # ============================================================
 echo ""
 echo "=========================================="
-echo " VM セットアップ完了!"
+echo " setup2 完了!"
 echo "=========================================="
 echo ""
-echo "次のステップ: systemd サービスのインストール"
-echo "  sudo bash ${APP_DIR}/scripts/setup/setup-systemd.sh"
+echo "次: sudo bash ${APP_DIR}/scripts/setup/setup_systemd.sh"
 echo ""

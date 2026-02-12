@@ -144,10 +144,10 @@ python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/e
 ### ALFWorld: `FileNotFoundError` / `PermissionError`: `data/alfworld/logic/alfred.pddl`
 
 alfworld ランタイムデータのシンボリックリンクが未作成、またはリンク先にアクセスできません。
-`setup-vm.sh` を再実行してください (sudo 不要):
+`setup2.sh` を再実行してください (sudo 不要):
 
 ```bash
-bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup-vm.sh
+bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup2.sh
 ```
 
 ### vLLM 接続エラー
