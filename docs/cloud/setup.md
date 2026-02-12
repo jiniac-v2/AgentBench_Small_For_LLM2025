@@ -140,16 +140,16 @@ VM 上で以下を実行します。
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 
-# (1) Docker / NVIDIA / Python 依存 (要 sudo)
+# (1) Docker / NVIDIA / Python 依存 の用意(要 sudo)
 sudo bash scripts/setup/setup1.sh
 
 # docker グループ反映のため再ログイン
 exit
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-# または以下コマンド
+# または以下コマンド(入り直し面倒なのでこちらを推奨)
 newgrp docker
 
-# (2) ALFWorld データ / .env / Docker イメージ pull
+# (2) ALFWorld データ / .env / Docker イメージ pull の用意
 cd ~/AgentBench_Small_For_LLM2025
 bash scripts/setup/setup2.sh
 ```
