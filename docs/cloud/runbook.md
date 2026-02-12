@@ -154,8 +154,8 @@ sudo docker ps | grep vllm
 # ログの確認
 sudo journalctl -u agentbench-vllm -n 50
 
-# ログをリアルタイムで追跡
-sudo journalctl -u agentbench-vllm -f
+# ログをリアルタイムで追跡 (直近100行 + ストリーム)
+sudo journalctl -u agentbench-vllm -n 100 -f
 ```
 
 ### vLLM の手動再起動
