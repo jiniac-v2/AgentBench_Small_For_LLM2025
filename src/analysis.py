@@ -39,6 +39,10 @@ MODEL_MAP = {
     "vicuna-7b": "vicuna-7b",
     "vicuna-13b": "vicuna-13b",
     "chat-bison": "chat-bison-001",
+    # --- BEGIN CUSTOM: vllm-model pass-through ---
+    # switch-model.sh の vllm-model エージェント名をそのまま通す
+    "vllm-model": "vllm-model",
+    # --- END CUSTOM: vllm-model pass-through ---
 }
 
 VALIDATION_MAP_FUNC = {
@@ -244,8 +248,52 @@ def main(args):
                 )
             )
 
+    # --- BEGIN CUSTOM: overall_score calculation ---
+    # oa = (db_bench_score*100*w_db + alf_score*100*w_alf) / 2
+    W_DB = 1.0 / 13.0
+    W_ALF = 1.0 / 13.0
+    overall_scores = {}
+    for agent in summary:
+        db_score = None
+        alf_score = None
+        for task in summary[agent]:
+            handler = TaskHandler.get_handler(task)
+            if isinstance(handler, DB):
+                db_score = float(summary[agent][task])
+            elif isinstance(handler, HH):
+                alf_score = float(summary[agent][task])
+        if db_score is not None and alf_score is not None:
+            oa = (db_score * 100 * W_DB + alf_score * 100 * W_ALF) / 2
+            overall_scores[agent] = {
+                "db_bench_score": db_score,
+                "alf_score": alf_score,
+                "w_db": W_DB,
+                "w_alf": W_ALF,
+                "overall_score": round(oa, 4),
+            }
+            print(
+                ColorMessage.green(
+                    f"[Overall] {agent}: DB={db_score:.4f} ALF={alf_score:.4f} => oa={oa:.4f}"
+                )
+            )
+        else:
+            missing = []
+            if db_score is None:
+                missing.append("db_bench")
+            if alf_score is None:
+                missing.append("alfworld")
+            print(
+                ColorMessage.yellow(
+                    f"[Overall] {agent}: skipped (missing {', '.join(missing)})"
+                )
+            )
+    # --- END CUSTOM: overall_score calculation ---
+
     final_result = {
         "summary": summary,
+        # --- BEGIN CUSTOM: include overall_scores in result ---
+        "overall_scores": overall_scores,
+        # --- END CUSTOM: include overall_scores in result ---
         "details": details,
     }
 
@@ -277,6 +325,22 @@ def main(args):
                 )
                 + "\n"
             )
+
+    # --- BEGIN CUSTOM: overall_score csv ---
+    if overall_scores:
+        with open(os.path.join(args.save, "overall_score.csv"), "w", encoding="utf-8") as f:
+            f.write("Agent,DB_Bench,ALFWorld,w_db,w_alf,Overall_Score\n")
+            for agent, scores in overall_scores.items():
+                f.write(
+                    f"{agent},{scores['db_bench_score']},{scores['alf_score']},"
+                    f"{scores['w_db']},{scores['w_alf']},{scores['overall_score']}\n"
+                )
+        print(
+            ColorMessage.green(
+                f"Overall score saved to {os.path.join(os.path.abspath(args.save), 'overall_score.csv')}"
+            )
+        )
+    # --- END CUSTOM: overall_score csv ---
 
     # Validation Analysis
     agent_validations = {
