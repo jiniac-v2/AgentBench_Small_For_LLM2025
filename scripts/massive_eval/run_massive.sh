@@ -23,7 +23,8 @@ set -e
 #
 # Valid_Status:
 #   vLLM-Error  : vLLM の立ち上げ失敗
-#   Valid-Error  : 評価中に失敗
+#   Valid-Error   : 評価中に失敗
+#   Analysis-Error: analysis.py の実行に失敗
 #   Finish       : 正常完了
 # ============================================================
 
@@ -245,8 +246,8 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
         pipeline_end=$(date +%s)
         duration=$(format_duration $((pipeline_end - pipeline_start)))
         update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
-        echo "[error] ${omni_account}: Valid-Error (no output directory)"
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Analysis-Error,${duration},,,"
+        echo "[error] ${omni_account}: Analysis-Error (no output directory)"
         continue
     fi
 
@@ -254,8 +255,8 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
         pipeline_end=$(date +%s)
         duration=$(format_duration $((pipeline_end - pipeline_start)))
         update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
-        echo "[error] ${omni_account}: Valid-Error (analysis failed)"
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Analysis-Error,${duration},,,"
+        echo "[error] ${omni_account}: Analysis-Error (analysis failed)"
         continue
     fi
 
