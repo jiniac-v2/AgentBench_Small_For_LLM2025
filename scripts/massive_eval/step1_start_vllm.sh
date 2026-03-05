@@ -57,13 +57,20 @@ if command -v nvidia-smi &>/dev/null; then
     fi
 fi
 
-# ── 3. 推論キャッシュのクリア (HFモデルウェイトは保持) ──
+# ── 3. キャッシュクリア (モデルウェイト含む) ──
 
-echo "[Step1] 推論キャッシュをクリア..."
-# vLLM が /root/.cache 配下に作る一時ファイルを掃除 (モデルウェイト以外)
+echo "[Step1] キャッシュをクリア (モデルウェイト含む)..."
+# vLLM / Ray の一時ファイル
 rm -rf /tmp/vllm_cache 2>/dev/null || true
 rm -rf /tmp/ray 2>/dev/null || true
-# Python の __pycache__ は触らない、HF の models キャッシュも保持
+# HuggingFace モデルウェイトを削除 (ストレージ圧迫防止)
+HF_CACHE="/root/.cache/huggingface/hub"
+if [ -d "$HF_CACHE" ]; then
+    cache_size=$(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)
+    echo "[Step1] HF キャッシュ削除: ${HF_CACHE} (${cache_size})"
+    rm -rf "$HF_CACHE"
+    mkdir -p "$HF_CACHE"
+fi
 
 # ── 4. .env / agent config 更新 ──
 
