@@ -4,21 +4,27 @@ set -e
 # ============================================================
 # Massive Evaluation Runner
 #
-# CSV ファイルに列挙された複数モデルを連続的に評価する。
+# CSV に列挙された複数モデルを連続的に評価する。
 #
 # Usage:
 #   sudo bash scripts/massive_eval/run_massive.sh [models.csv]
 #
 # CSV format (ヘッダー行必須):
-#   id,username,hf_model_path,hf_token,overall_score
+#   OmniAccount,OmniID,Pre-check,Model_Path,READ_KEY,
+#   Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
 #
-# 評価ワークフロー (1モデルあたり):
-#   1. モデル切り替え (.env / yaml 更新 + vLLM 再起動)
-#   2. vLLM 起動待ち
-#   3. タスクサーバー起動 → 評価実行
-#   4. analysis 実行
-#   5. 結果を {username}_{model_basename} ディレクトリにコピー
-#   6. overall_score を CSV に書き戻し
+# Pre-check が "OK" の行のみ実行する。
+#
+# パイプライン (1モデルあたり):
+#   1. vLLM 立ち上げ (.env / yaml 更新 + vLLM 再起動 + 起動待ち)
+#   2. assigner.py の実行 (タスクサーバー起動 → 評価)
+#   3. analysis.py の実行
+#   4. 評価コンテンツの整理 (OmniAccount プレフィックス付きディレクトリに保存)
+#
+# Valid_Status:
+#   vLLM-Error  : vLLM の立ち上げ失敗
+#   Valid-Error  : 評価中に失敗
+#   Finish       : 正常完了
 # ============================================================
 
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -32,94 +38,142 @@ fi
 
 mkdir -p "$RESULTS_BASE"
 
-# ── ヘルパー関数 ──────────────────────────────────
+# ── CSV 書き戻し関数 ──────────────────────────────
 
-switch_model() {
+# CSV の特定行を更新する (行番号ベースで安全に書き戻す)
+# Usage: update_csv <line_num> <new_line>
+update_csv() {
+    local line_num="$1"
+    local new_line="$2"
+    sed -i "${line_num}s|.*|${new_line}|" "$CSV_FILE"
+}
+
+# ── パイプライン Step 1: vLLM 立ち上げ ───────────
+
+start_vllm() {
     local model="$1" token="$2"
 
-    echo "[switch] model=${model}"
+    echo "[Step1] vLLM 立ち上げ: model=${model}"
 
-    # 1. .env 更新
+    # .env 更新
     cat > "${APP_DIR}/.env" <<EOF
 VLLM_MODEL=${model}
 HUGGING_FACE_HUB_TOKEN=${token}
 EOF
 
-    # 2. agent config 更新
+    # agent config 更新
     sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${model}\"|" \
         "${APP_DIR}/configs/agents/api_agents.yaml"
 
-    # 3. vLLM 再起動
+    # vLLM 再起動
     systemctl daemon-reload
     systemctl restart agentbench-vllm
-}
 
-wait_for_vllm() {
-    local max_wait=300  # 最大5分
+    # 起動待ち
+    local max_wait=300
     local elapsed=0
-    echo "[wait] vLLM の起動を待機中..."
+    echo "[Step1] vLLM の起動を待機中..."
     while [ $elapsed -lt $max_wait ]; do
         if curl -s --max-time 5 http://localhost:8000/v1/models >/dev/null 2>&1; then
-            echo "[wait] vLLM 起動完了 (${elapsed}s)"
+            echo "[Step1] vLLM 起動完了 (${elapsed}s)"
             return 0
         fi
         sleep 10
         elapsed=$((elapsed + 10))
-        echo "[wait] ... ${elapsed}s 経過"
+        echo "[Step1] ... ${elapsed}s 経過"
     done
-    echo "ERROR: vLLM が ${max_wait}s 以内に起動しませんでした"
+    echo "[Step1] ERROR: vLLM が ${max_wait}s 以内に起動しませんでした"
     return 1
 }
 
-run_evaluation() {
-    echo "[eval] タスクサーバー起動..."
-    # タスクサーバーをバックグラウンドで起動
+# ── パイプライン Step 2: assigner.py の実行 ──────
+
+run_assigner() {
+    echo "[Step2] タスクサーバー起動..."
     bash "${APP_DIR}/scripts/eval/run-task-server.sh" &
     local task_pid=$!
-    sleep 5  # タスクサーバーの起動待ち
+    sleep 5
 
-    echo "[eval] 評価開始..."
+    echo "[Step2] assigner.py 実行開始..."
     cd "${APP_DIR}"
-    python3 -m src.assigner -c configs/assignments/default.yaml -r || true
+    python3 -m src.assigner -c configs/assignments/default.yaml -r
+    local assigner_exit=$?
 
     # タスクサーバー停止
     kill $task_pid 2>/dev/null || true
     wait $task_pid 2>/dev/null || true
+
+    return $assigner_exit
 }
+
+# ── パイプライン Step 3: analysis.py の実行 ──────
 
 run_analysis() {
     local output_dir="$1"
-    echo "[analysis] 分析実行..."
+    local analysis_save="${output_dir}/analysis"
+
+    echo "[Step3] analysis.py 実行..."
     cd "${APP_DIR}"
     python3 -m src.analysis \
         -c configs/assignments/definition.yaml \
         -o "$output_dir" \
-        -s "${output_dir}/analysis" \
+        -s "$analysis_save" \
         -t 0
+
+    return $?
 }
 
-get_latest_output() {
-    # outputs/ 配下で最も新しいディレクトリを返す
-    ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1
+# ── パイプライン Step 4: 評価コンテンツの整理 ────
+
+organize_results() {
+    local omni_account="$1"
+    local output_dir="$2"
+    local dest="${RESULTS_BASE}/${omni_account}"
+
+    echo "[Step4] 結果を整理: ${dest}/"
+
+    # 既存があれば削除
+    if [ -d "$dest" ]; then
+        rm -rf "$dest"
+    fi
+
+    # outputs ディレクトリ丸ごとコピー (analysis 結果含む)
+    cp -r "$output_dir" "$dest"
+
+    echo "[Step4] 保存完了: ${dest}"
 }
 
-extract_overall_score() {
-    local analysis_dir="$1"
-    local score_file="${analysis_dir}/analysis/result.json"
+# ── スコア抽出関数 ───────────────────────────────
+
+extract_scores() {
+    local output_dir="$1"
+    local score_file="${output_dir}/analysis/result.json"
     if [ -f "$score_file" ]; then
         python3 -c "
 import json, sys
-with open('${score_file}') as f:
+with open(sys.argv[1]) as f:
     data = json.load(f)
 scores = data.get('overall_scores', {})
 for agent, s in scores.items():
-    print(s.get('overall_score', 'N/A'))
+    overall = s.get('overall_score', '')
+    db = s.get('db_bench_score', '')
+    alf = s.get('alf_score', '')
+    print(f'{overall},{db},{alf}')
     sys.exit(0)
-print('N/A')
-"
+print(',,')
+" "$score_file"
     else
-        echo "N/A"
+        echo ",,"
     fi
+}
+
+get_latest_output() {
+    ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1
+}
+
+format_duration() {
+    local seconds="$1"
+    printf '%02d:%02d:%02d' $((seconds/3600)) $(((seconds%3600)/60)) $((seconds%60))
 }
 
 # ── メインループ ──────────────────────────────────
@@ -130,73 +184,95 @@ echo " CSV: ${CSV_FILE}"
 echo "============================================"
 echo ""
 
-# CSV をヘッダー付きで読み込む (1行目スキップ)
-line_num=0
-while IFS=',' read -r id username hf_model_path hf_token _rest; do
-    line_num=$((line_num + 1))
+csv_line_num=0
+while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
+                       current_score valid_status valid_time score db_bench alfworld; do
+    csv_line_num=$((csv_line_num + 1))
 
     # ヘッダー行スキップ
-    if [ $line_num -eq 1 ]; then
+    if [ $csv_line_num -eq 1 ]; then
         continue
     fi
 
     # 空行スキップ
-    if [ -z "$id" ] || [ -z "$hf_model_path" ]; then
+    if [ -z "$omni_account" ] || [ -z "$model_path" ]; then
         continue
     fi
 
-    # 既にスコアが記入済みならスキップ
-    if [ -n "$_rest" ] && [ "$_rest" != "" ] && [ "$_rest" != " " ]; then
-        echo "[skip] ID=${id} ${username} -- already scored: ${_rest}"
+    # Pre-check が OK でなければスキップ
+    if [ "$pre_check" != "OK" ]; then
+        echo "[skip] ${omni_account} (OmniID=${omni_id}) -- Pre-check=${pre_check}"
         continue
     fi
 
-    model_basename="$(basename "$hf_model_path")"
-    result_dir_name="${username}_${model_basename}"
+    # 既に Finish ならスキップ
+    if [ "$valid_status" = "Finish" ]; then
+        echo "[skip] ${omni_account} (OmniID=${omni_id}) -- already Finish"
+        continue
+    fi
 
     echo ""
     echo "============================================"
-    echo " [${id}] ${username} / ${hf_model_path}"
+    echo " ${omni_account} (OmniID=${omni_id})"
+    echo " Model: ${model_path}"
     echo "============================================"
 
-    # Step 1: モデル切り替え
-    switch_model "$hf_model_path" "$hf_token"
+    pipeline_start=$(date +%s)
 
-    # Step 2: vLLM 起動待ち
-    if ! wait_for_vllm; then
-        echo "[error] ID=${id} skipped (vLLM failed to start)"
-        # CSV にエラーを記録
-        sed -i "s|^${id},${username},${hf_model_path},${hf_token},.*|${id},${username},${hf_model_path},${hf_token},ERROR|" "$CSV_FILE"
+    # ── Step 1: vLLM 立ち上げ ──
+    if ! start_vllm "$model_path" "$read_key"; then
+        pipeline_end=$(date +%s)
+        duration=$(format_duration $((pipeline_end - pipeline_start)))
+        update_csv "$csv_line_num" \
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},vLLM-Error,${duration},,,"
+        echo "[error] ${omni_account}: vLLM-Error"
         continue
     fi
 
-    # Step 3: 評価実行
-    run_evaluation
+    # ── Step 2: assigner.py の実行 ──
+    if ! run_assigner; then
+        pipeline_end=$(date +%s)
+        duration=$(format_duration $((pipeline_end - pipeline_start)))
+        update_csv "$csv_line_num" \
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
+        echo "[error] ${omni_account}: Valid-Error (assigner failed)"
+        continue
+    fi
 
-    # Step 4: 最新の出力ディレクトリを取得 → analysis 実行
+    # ── Step 3: analysis.py の実行 ──
     latest_output="$(get_latest_output)"
     if [ -z "$latest_output" ]; then
-        echo "[error] ID=${id} no output directory found"
-        sed -i "s|^${id},${username},${hf_model_path},${hf_token},.*|${id},${username},${hf_model_path},${hf_token},ERROR|" "$CSV_FILE"
+        pipeline_end=$(date +%s)
+        duration=$(format_duration $((pipeline_end - pipeline_start)))
+        update_csv "$csv_line_num" \
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
+        echo "[error] ${omni_account}: Valid-Error (no output directory)"
         continue
     fi
 
-    run_analysis "$latest_output"
-
-    # Step 5: 結果ディレクトリをコピー
-    dest="${RESULTS_BASE}/${result_dir_name}"
-    if [ -d "$dest" ]; then
-        rm -rf "$dest"
+    if ! run_analysis "$latest_output"; then
+        pipeline_end=$(date +%s)
+        duration=$(format_duration $((pipeline_end - pipeline_start)))
+        update_csv "$csv_line_num" \
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
+        echo "[error] ${omni_account}: Valid-Error (analysis failed)"
+        continue
     fi
-    cp -r "$latest_output" "$dest"
-    echo "[save] 結果を保存: ${dest}"
 
-    # Step 6: overall_score を CSV に書き戻し
-    score="$(extract_overall_score "$latest_output")"
-    echo "[score] ID=${id} ${username}: ${score}"
-    sed -i "s|^${id},${username},${hf_model_path},${hf_token},.*|${id},${username},${hf_model_path},${hf_token},${score}|" "$CSV_FILE"
+    # ── Step 4: 評価コンテンツの整理 ──
+    organize_results "$omni_account" "$latest_output"
 
-    echo "[done] ID=${id} ${username} 完了"
+    # ── スコア抽出 & CSV 書き戻し ──
+    scores_csv="$(extract_scores "$latest_output")"
+    IFS=',' read -r score_val db_val alf_val <<< "$scores_csv"
+
+    pipeline_end=$(date +%s)
+    duration=$(format_duration $((pipeline_end - pipeline_start)))
+
+    update_csv "$csv_line_num" \
+        "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Finish,${duration},${score_val},${db_val},${alf_val}"
+
+    echo "[done] ${omni_account}: Score=${score_val} DB=${db_val} ALF=${alf_val} Time=${duration}"
 
 done < "$CSV_FILE"
 
