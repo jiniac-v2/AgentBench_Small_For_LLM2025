@@ -24,6 +24,7 @@ set -e
 #   vLLM-Error    : vLLM の立ち上げ失敗
 #   Valid-Error    : 評価中に失敗
 #   Analysis-Error : analysis.py の実行に失敗
+#   Valid_TimeOut  : パイプライン全体が制限時間超過 (2h20m)
 #   Finish         : 正常完了
 # ============================================================
 
@@ -31,6 +32,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CSV_FILE="${1:-${SCRIPT_DIR}/models.csv}"
 RESULTS_BASE="${APP_DIR}/massive_eval_results"
+
+# 1モデルあたりの制限時間 (2時間20分 = 8400秒)
+PIPELINE_TIMEOUT_SEC=8400
 
 if [ ! -f "$CSV_FILE" ]; then
     echo "ERROR: CSV file not found: $CSV_FILE"
@@ -133,68 +137,74 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
     pipeline_start=$(date +%s)
 
     # ────────────────────────────────────────────
-    # Step 1: vLLM 立ち上げ
+    # パイプライン全体をサブシェルで実行し timeout で制限
+    # タイムアウト時は exit code 124 を返す
     # ────────────────────────────────────────────
-    if ! bash "${SCRIPT_DIR}/step1_start_vllm.sh" "$model_path" "$read_key"; then
-        pipeline_end=$(date +%s)
-        duration=$(format_duration $((pipeline_end - pipeline_start)))
+    # set +e で timeout の非ゼロ終了を捕捉する
+    set +e
+    timeout --kill-after=60 "${PIPELINE_TIMEOUT_SEC}" bash -c '
+        set -e
+        SCRIPT_DIR="$1"; model_path="$2"; read_key="$3"; latest_output_file="$4"
+
+        # Step 1: vLLM 立ち上げ
+        bash "${SCRIPT_DIR}/step1_start_vllm.sh" "$model_path" "$read_key"
+
+        # Step 2: 評価実行
+        bash "${SCRIPT_DIR}/step2_evaluate.sh"
+
+        # Step 3: analysis.py 実行
+        APP_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+        latest_output="$(ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1)"
+        if [ -z "$latest_output" ]; then
+            echo "ERROR: no output directory found" >&2
+            exit 1
+        fi
+        bash "${SCRIPT_DIR}/step3_analysis.sh" "$latest_output"
+
+        # Step 4: 評価コンテンツの整理
+        bash "${SCRIPT_DIR}/step4_organize.sh" "$5" "$latest_output" "$6"
+
+        # latest_output パスを親に伝える
+        echo "$latest_output" > "$latest_output_file"
+    ' _ "$SCRIPT_DIR" "$model_path" "$read_key" "/tmp/latest_output_$$" "$omni_account" "$RESULTS_BASE"
+
+    pipeline_exit=$?
+    set -e
+    pipeline_end=$(date +%s)
+    duration=$(format_duration $((pipeline_end - pipeline_start)))
+
+    # ── タイムアウト判定 ──
+    if [ $pipeline_exit -eq 124 ] || [ $pipeline_exit -eq 137 ]; then
         update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},vLLM-Error,${duration},,,"
-        echo "[FAIL] ${omni_account}: vLLM-Error (${duration})"
+            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid_TimeOut,${duration},,,"
+        echo "[TIMEOUT] ${omni_account}: Valid_TimeOut (${duration})"
         error_count=$((error_count + 1))
+        # タイムアウト後のクリーンアップ: vLLM コンテナ停止
+        docker stop agentbench-vllm 2>/dev/null || true
+        rm -f "/tmp/latest_output_$$"
         continue
     fi
 
-    # ────────────────────────────────────────────
-    # Step 2: 評価実行
-    # ────────────────────────────────────────────
-    if ! bash "${SCRIPT_DIR}/step2_evaluate.sh"; then
-        pipeline_end=$(date +%s)
-        duration=$(format_duration $((pipeline_end - pipeline_start)))
+    # ── エラー判定 ──
+    if [ $pipeline_exit -ne 0 ]; then
+        # サブシェル内のどこかで失敗 — ログから判断
         update_csv "$csv_line_num" \
             "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
         echo "[FAIL] ${omni_account}: Valid-Error (${duration})"
         error_count=$((error_count + 1))
+        rm -f "/tmp/latest_output_$$"
         continue
     fi
 
-    # ────────────────────────────────────────────
-    # Step 3: analysis.py 実行
-    # ────────────────────────────────────────────
-    latest_output="$(get_latest_output)"
-    if [ -z "$latest_output" ]; then
-        pipeline_end=$(date +%s)
-        duration=$(format_duration $((pipeline_end - pipeline_start)))
-        update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Analysis-Error,${duration},,,"
-        echo "[FAIL] ${omni_account}: Analysis-Error -- no output directory (${duration})"
-        error_count=$((error_count + 1))
-        continue
+    # ── 正常完了 ──
+    latest_output=""
+    if [ -f "/tmp/latest_output_$$" ]; then
+        latest_output="$(cat /tmp/latest_output_$$)"
+        rm -f "/tmp/latest_output_$$"
     fi
 
-    if ! bash "${SCRIPT_DIR}/step3_analysis.sh" "$latest_output"; then
-        pipeline_end=$(date +%s)
-        duration=$(format_duration $((pipeline_end - pipeline_start)))
-        update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Analysis-Error,${duration},,,"
-        echo "[FAIL] ${omni_account}: Analysis-Error (${duration})"
-        error_count=$((error_count + 1))
-        continue
-    fi
-
-    # ────────────────────────────────────────────
-    # Step 4: 評価コンテンツの整理
-    # ────────────────────────────────────────────
-    bash "${SCRIPT_DIR}/step4_organize.sh" "$omni_account" "$latest_output" "$RESULTS_BASE"
-
-    # ────────────────────────────────────────────
-    # スコア抽出 & CSV 書き戻し
-    # ────────────────────────────────────────────
     scores_csv="$(extract_scores "$latest_output")"
     IFS=',' read -r score_val db_val alf_val <<< "$scores_csv"
-
-    pipeline_end=$(date +%s)
-    duration=$(format_duration $((pipeline_end - pipeline_start)))
 
     update_csv "$csv_line_num" \
         "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Finish,${duration},${score_val},${db_val},${alf_val}"
