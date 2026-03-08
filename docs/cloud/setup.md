@@ -3,14 +3,12 @@
 ## 前提条件
 
 - `gcloud` CLI インストール済み — [インストール方法](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=ja)
-- `terraform` >= 1.0 インストール済み — [インストール方法](https://developer.hashicorp.com/terraform/install)
 > winの方はWSLでやったほうがいいかも
 
 ## Step 1: 認証・プロジェクト設定
 
 ```bash
 gcloud auth login
-gcloud auth application-default login    # Terraform 用
 ```
 
 ```bash
@@ -90,9 +88,50 @@ for q in json.load(sys.stdin).get('quotas', []):
 gcloud compute accelerator-types list --filter="name=nvidia-l4" --project YOUR_PROJECT_ID
 ```
 
-`terraform.tfvars` の `region` / `zone` は上記で表示されるゾーンから選択してください。
+---
 
-## Step 6: VM 作成
+## Step 6: VM の用意
+
+VM を用意する方法は2つあります。**どちらか一方** を選んでください。
+
+### 方法 A: 既存の VM を使う
+
+既に GPU 付き VM (Ubuntu 22.04 + NVIDIA ドライバ) が用意されている場合はこちら。
+
+**必要なスペック:**
+
+| 項目 | 推奨値 |
+|---|---|
+| GPU | NVIDIA L4 以上 |
+| RAM | 32GB 以上 |
+| ディスク | 200GB 以上 |
+| OS | Ubuntu 22.04 + CUDA 12.x + NVIDIA ドライバ |
+
+**リポジトリの取得:**
+
+```bash
+# VM 上で実行
+cd ~
+git clone https://github.com/YOUR_ORG/AgentBench_Small_For_LLM2025.git
+cd AgentBench_Small_For_LLM2025
+```
+
+> private リポジトリの場合は GitHub PAT を使って clone してください。
+
+→ [Step 7: VM に接続](#step-7-vm-に接続) に進む
+
+### 方法 B: Terraform で新規作成
+
+VM を一から作成する場合はこちら。Terraform で VM 作成 → startup script でリポジトリ clone まで自動化されています。
+
+**追加の前提条件:**
+
+- `terraform` >= 1.0 インストール済み — [インストール方法](https://developer.hashicorp.com/terraform/install)
+
+```bash
+# Terraform 用の認証
+gcloud auth application-default login
+```
 
 ```bash
 # Terraform 設定
@@ -110,8 +149,8 @@ disk_size_gb = 200
 git_branch   = ""              # VM にクローンするブランチ(現在:kit_v0.2)
 ```
 
-> 基本的に本キットでは，初期構築を１度やればあとはVMを停止→再起動させても同じ作業をしなくて済むようになってます．  
-> が，GCPの仕様上，GPUが枯渇しているリージョン・ゾーンで停止してしまうと，再起動時にGPUが掴めなくてマシン作り直しになることがあります．  
+> 基本的に本キットでは，初期構築を１度やればあとはVMを停止→再起動させても同じ作業をしなくて済むようになってます．
+> が，GCPの仕様上，GPUが枯渇しているリージョン・ゾーンで停止してしまうと，再起動時にGPUが掴めなくてマシン作り直しになることがあります．
 > ある意味，その為にこのようなキットがあるとも
 
 ```bash
@@ -126,6 +165,10 @@ bash scripts/infra/setup-gcp.sh
 > 基本的にここで失敗しそうな原因はリージョンガチャした結果，そのリージョン/ゾーンは使えないよ，と言われたパターンが大抵です．
 > また別のリージョン/ゾーンに変えてみてください．
 
+→ [Step 7: VM に接続](#step-7-vm-に接続) に進む
+
+---
+
 ## Step 7: VM に接続
 
 SSH で VM に接続します。接続方法は2つあります:
@@ -137,7 +180,7 @@ SSH で VM に接続します。接続方法は2つあります:
 
 ## Step 8: セットアップスクリプト
 
-VM 上で以下を実行します。
+VM 上で以下を実行します。**方法 A (既存 VM) でも方法 B (Terraform) でも同じ手順です。**
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
