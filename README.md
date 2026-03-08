@@ -41,7 +41,21 @@
 | ドキュメント | 内容 |
 |---|---|
 | [環境構築](docs/cloud/setup.md) | GCP VM の構築・接続・管理 |
-| [評価の実行](docs/cloud/runbook.md) | クラウド評価の手順・監視・トラブルシューティング |
+| [評価の実行](docs/cloud/runbook.md) | クラウド評価の手順・監視・トラブルシューティング・大規模評価 |
+
+### 大規模評価 (複数モデル一括)
+
+CSV に列挙した複数モデルを連続で評価するパイプラインです。
+[Prefect](https://www.prefect.io/) による GUI 監視と Slack Webhook 通知に対応しています。
+詳細は [評価の実行 → 大規模評価](docs/cloud/runbook.md#大規模評価-複数モデル一括実行) を参照してください。
+
+```bash
+# Prefect サーバー起動 (別ターミナル)
+prefect server start
+
+# 実行
+sudo python3 scripts/massive_eval/runbook.py [models.csv]
+```
 
 ## Citation
 

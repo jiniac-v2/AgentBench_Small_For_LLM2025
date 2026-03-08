@@ -204,4 +204,103 @@ docker ps | grep vllm
 
 ## 大規模評価 (複数モデル一括実行)
 
-> **TBD** — 複数モデルを順次・並列で回すスクリプトを `script/massive_eval/` に整備予定。
+複数モデルを CSV 駆動で一括評価するパイプラインです。
+[Prefect](https://www.prefect.io/) による GUI 監視と Slack 通知に対応しています。
+
+### セットアップ
+
+```bash
+# Prefect インストール (requirements.txt に含まれているが個別にやる場合)
+pip install "prefect>=3.0,<4.0"
+```
+
+#### Slack 通知の設定 (任意)
+
+1. [Slack App](https://api.slack.com/apps) を作成
+2. **Incoming Webhooks** を有効化し、チャンネルに Webhook URL を発行
+3. `.env` に追記:
+
+```bash
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxxx
+```
+
+> 通知内容はモデル名・ステータス・スコア・所要時間のみ。トークン等の機密情報は送信しません。
+
+### CSV の準備
+
+`scripts/massive_eval/models.csv` を作成します。
+
+```csv
+OmniAccount,OmniID,Pre-check,Model_Path,READ_KEY,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+alice,001,OK,Qwen/Qwen2.5-7B-Instruct,hf_xxx,,,,,,
+bob,002,OK,your-org/your-model,hf_yyy,,,,,,
+```
+
+| カラム | 説明 |
+|---|---|
+| `OmniAccount` | 識別用のアカウント名 |
+| `OmniID` | 識別用 ID |
+| `Pre-check` | `OK` のもののみ評価される |
+| `Model_Path` | HuggingFace モデルパス |
+| `READ_KEY` | HuggingFace トークン (READ権限) |
+| `Valid_Status` | 実行後に自動記入 (`Finish`, `vLLM-Error` 等) |
+
+### 実行
+
+```bash
+# ターミナル 1: Prefect サーバー起動
+prefect server start
+
+# ターミナル 2: 評価実行
+cd ~/AgentBench_Small_For_LLM2025
+sudo python3 scripts/massive_eval/runbook.py [models.csv]
+```
+
+### Prefect UI で進捗確認
+
+GCP VM 上で動かしている場合、SSH トンネルでブラウザから確認できます:
+
+```bash
+# ローカル PC から
+gcloud compute ssh agentbench-eval \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID \
+  --ssh-flag="-L 4200:localhost:4200"
+```
+
+ブラウザで `http://localhost:4200` を開くと:
+
+- フロー全体の進捗 (何モデル目か)
+- 各ステップ (vLLM起動/評価/分析/整理) の状態
+- エラー時のログ・トレースバック
+
+> VSCode Remote SSH で接続している場合、ポートが自動転送されるため SSH トンネルは不要です。
+
+### Slack 通知の内容
+
+設定すると以下のタイミングで通知が届きます:
+
+| タイミング | 内容 |
+|---|---|
+| パイプライン開始 | CSV ファイル名 |
+| モデル評価開始 | モデル名 |
+| モデル評価完了 | スコア (Overall / DB / ALF) + 所要時間 |
+| エラー / タイムアウト | エラー種別 + モデル名 |
+| 全体完了 | 成功/失敗/スキップ数のサマリー |
+
+### Valid_Status 一覧
+
+| ステータス | 意味 |
+|---|---|
+| `Finish` | 正常完了 |
+| `vLLM-Error` | vLLM の起動に失敗 |
+| `Valid-Error` | 評価中にエラー発生 |
+| `Analysis-Error` | analysis.py の実行に失敗 |
+| `Valid_TimeOut` | パイプライン全体がタイムアウト (2h20m) |
+
+### 従来の runbook.sh
+
+Prefect なしで従来通り実行することも可能です:
+
+```bash
+sudo bash scripts/massive_eval/runbook.sh [models.csv]
+```

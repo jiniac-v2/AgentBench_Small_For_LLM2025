@@ -20,3 +20,6 @@ alfworld==0.4.2
 textworld==1.7.0
 nltk
 torch
+
+# Massive Evaluation (Prefect orchestration)
+prefect>=3.0,<4.0
