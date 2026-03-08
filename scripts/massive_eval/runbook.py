@@ -11,6 +11,13 @@ Features:
   - モデルごとのタイムアウト制御 (デフォルト 2h20m)
   - CSV 自動更新 (スコア・ステータス・所要時間)
 
+CSV format (ヘッダー行必須):
+  No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
+  Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+
+  - PreCheck が "OK" の行のみ評価対象
+  - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
+
 Usage:
   # Prefect サーバー起動 (別ターミナル)
   prefect server start
@@ -201,15 +208,15 @@ def step3_analysis(output_dir: str) -> None:
 
 
 @task(name="Step4: 結果整理", log_prints=True)
-def step4_organize(omni_account: str, output_dir: str, results_base: str) -> None:
-    """結果を整理する."""
+def step4_organize(prefix: str, output_dir: str, results_base: str) -> None:
+    """結果を整理する. prefix は '{OmniID}_{OmniAccount}_' 形式."""
     logger = get_run_logger()
-    logger.info(f"結果整理: {omni_account}")
+    logger.info(f"結果整理: {prefix}")
     result = subprocess.run(
         [
             "bash",
             str(SCRIPT_DIR / "step4_organize.sh"),
-            omni_account,
+            prefix,
             output_dir,
             results_base,
         ],
@@ -232,13 +239,17 @@ def step4_organize(omni_account: str, output_dir: str, results_base: str) -> Non
 )
 def evaluate_model(
     model_path: str,
-    read_key: str,
-    omni_account: str,
+    hf_token: str,
+    prefix: str,
     results_base: str,
 ) -> tuple[str, str, str]:
-    """1モデルの評価パイプライン (Step1〜4)."""
+    """1モデルの評価パイプライン (Step1〜4).
+
+    Args:
+        prefix: 結果ディレクトリ名 ('{OmniID}_{OmniAccount}_' 形式)
+    """
     # Step 1
-    step1_start_vllm(model_path, read_key)
+    step1_start_vllm(model_path, hf_token)
 
     # Step 2
     step2_evaluate()
@@ -250,7 +261,7 @@ def evaluate_model(
     step3_analysis(output_dir)
 
     # Step 4
-    step4_organize(omni_account, output_dir, results_base)
+    step4_organize(prefix, output_dir, results_base)
 
     # スコア取得
     return extract_scores(output_dir)
@@ -297,71 +308,106 @@ def massive_eval(csv_file: str | None = None) -> None:
         color="#439FE0",
     )
 
+    # CSV カラムインデックス
+    # No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
+    # Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+    COL_NO = 0
+    COL_OMNI_ID = 1
+    COL_OMNI_ACCOUNT = 2
+    COL_MODEL_PATH = 3
+    COL_HF_TOKEN = 4
+    COL_EXTRACT_STATUS = 5
+    COL_LAST_UPDATE = 6
+    COL_MODEL_STATUS = 7
+    COL_PRECHECK = 8
+    COL_CURRENT_SCORE = 9
+    COL_VALID_STATUS = 10
+    COL_VALID_TIME = 11
+    COL_SCORE = 12
+    COL_DB_BENCH = 13
+    COL_ALFWORLD = 14
+    NUM_COLS = 15
+
     for csv_line_num_0based, row in enumerate(reader):
         csv_line_num = csv_line_num_0based + 2  # 1-indexed, ヘッダー分+1
 
-        if len(row) < 5:
+        if len(row) < COL_PRECHECK + 1:
             continue
 
-        omni_account = row[0].strip()
-        omni_id = row[1].strip()
-        pre_check = row[2].strip()
-        model_path = row[3].strip()
-        read_key = row[4].strip()
-        current_score = row[5].strip() if len(row) > 5 else ""
-        valid_status = row[6].strip() if len(row) > 6 else ""
+        # パディング: カラム数が足りない場合は空文字で埋める
+        while len(row) < NUM_COLS:
+            row.append("")
 
-        if not omni_account or not model_path:
+        no = row[COL_NO].strip()
+        omni_id = row[COL_OMNI_ID].strip()
+        omni_account = row[COL_OMNI_ACCOUNT].strip()
+        model_path = row[COL_MODEL_PATH].strip()
+        hf_token = row[COL_HF_TOKEN].strip()
+        extract_status = row[COL_EXTRACT_STATUS].strip()
+        last_update = row[COL_LAST_UPDATE].strip()
+        model_status = row[COL_MODEL_STATUS].strip()
+        pre_check = row[COL_PRECHECK].strip()
+        current_score = row[COL_CURRENT_SCORE].strip()
+        valid_status = row[COL_VALID_STATUS].strip()
+
+        if not omni_id or not model_path:
             continue
 
         total_count += 1
+        prefix = f"{omni_id}_{omni_account}_"
+        label = f"{omni_id}/{omni_account}"
 
-        # Pre-check が OK でなければスキップ
+        # PreCheck が OK でなければスキップ
         if pre_check != "OK":
-            logger.info(f"[skip] {omni_account} (OmniID={omni_id}) -- Pre-check={pre_check}")
+            logger.info(f"[skip] {label} -- PreCheck={pre_check}")
             skip_count += 1
             continue
 
         # 既に Finish ならスキップ
         if valid_status == "Finish":
-            logger.info(f"[skip] {omni_account} (OmniID={omni_id}) -- already Finish")
+            logger.info(f"[skip] {label} -- already Finish")
             skip_count += 1
             continue
 
-        logger.info(f"[{total_count}] {omni_account} (OmniID={omni_id}) Model: {model_path}")
+        logger.info(f"[{total_count}] {label} Model: {model_path}")
 
         notify_slack(
             webhook_url,
-            title=f"モデル評価開始: {omni_account}",
+            title=f"モデル評価開始: {label}",
             status=model_path,
             color="#439FE0",
         )
 
         pipeline_start = time.time()
 
+        def _build_csv_line(v_status, v_time, score="", db="", alf=""):
+            """現在の行データをもとに CSV 行を組み立てる."""
+            vals = list(row)
+            vals[COL_VALID_STATUS] = v_status
+            vals[COL_VALID_TIME] = v_time
+            vals[COL_SCORE] = score
+            vals[COL_DB_BENCH] = db
+            vals[COL_ALFWORLD] = alf
+            return ",".join(vals)
+
         try:
             score_val, db_val, alf_val = evaluate_model(
                 model_path=model_path,
-                read_key=read_key,
-                omni_account=omni_account,
+                hf_token=hf_token,
+                prefix=prefix,
                 results_base=results_base,
             )
 
             duration = format_duration(int(time.time() - pipeline_start))
+            update_csv_line(csv_path, csv_line_num,
+                            _build_csv_line("Finish", duration, score_val, db_val, alf_val))
 
-            # CSV 更新: Finish
-            new_line = ",".join([
-                omni_account, omni_id, pre_check, model_path, read_key,
-                current_score, "Finish", duration, score_val, db_val, alf_val,
-            ])
-            update_csv_line(csv_path, csv_line_num, new_line)
-
-            logger.info(f"[OK] {omni_account}: Score={score_val} DB={db_val} ALF={alf_val} Time={duration}")
+            logger.info(f"[OK] {label}: Score={score_val} DB={db_val} ALF={alf_val} Time={duration}")
             finish_count += 1
 
             notify_slack(
                 webhook_url,
-                title=f"モデル評価完了: {omni_account}",
+                title=f"モデル評価完了: {label}",
                 status="Finish",
                 fields={"Score": score_val, "DB": db_val, "ALF": alf_val, "Time": duration},
                 color="#36a64f",
@@ -369,13 +415,10 @@ def massive_eval(csv_file: str | None = None) -> None:
 
         except TimeoutError:
             duration = format_duration(int(time.time() - pipeline_start))
-            new_line = ",".join([
-                omni_account, omni_id, pre_check, model_path, read_key,
-                current_score, "Valid_TimeOut", duration, "", "", "",
-            ])
-            update_csv_line(csv_path, csv_line_num, new_line)
+            update_csv_line(csv_path, csv_line_num,
+                            _build_csv_line("Valid_TimeOut", duration))
 
-            logger.warning(f"[TIMEOUT] {omni_account}: Valid_TimeOut ({duration})")
+            logger.warning(f"[TIMEOUT] {label}: Valid_TimeOut ({duration})")
             error_count += 1
 
             # クリーンアップ
@@ -383,7 +426,7 @@ def massive_eval(csv_file: str | None = None) -> None:
 
             notify_slack(
                 webhook_url,
-                title=f"タイムアウト: {omni_account}",
+                title=f"タイムアウト: {label}",
                 status=f"Valid_TimeOut ({duration})",
                 fields={"Model": model_path},
                 color="#ff0000",
@@ -400,18 +443,15 @@ def massive_eval(csv_file: str | None = None) -> None:
             elif "分析" in error_msg or "analysis" in error_msg.lower():
                 error_type = "Analysis-Error"
 
-            new_line = ",".join([
-                omni_account, omni_id, pre_check, model_path, read_key,
-                current_score, error_type, duration, "", "", "",
-            ])
-            update_csv_line(csv_path, csv_line_num, new_line)
+            update_csv_line(csv_path, csv_line_num,
+                            _build_csv_line(error_type, duration))
 
-            logger.error(f"[FAIL] {omni_account}: {error_type} ({duration}) - {e}")
+            logger.error(f"[FAIL] {label}: {error_type} ({duration}) - {e}")
             error_count += 1
 
             notify_slack(
                 webhook_url,
-                title=f"エラー: {omni_account}",
+                title=f"エラー: {label}",
                 status=f"{error_type}: {e}",
                 fields={"Model": model_path, "Time": duration},
                 color="#ff0000",

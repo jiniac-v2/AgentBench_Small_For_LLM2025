@@ -231,19 +231,25 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxxx
 `scripts/massive_eval/models.csv` を作成します。
 
 ```csv
-OmniAccount,OmniID,Pre-check,Model_Path,READ_KEY,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
-alice,001,OK,Qwen/Qwen2.5-7B-Instruct,hf_xxx,,,,,,
-bob,002,OK,your-org/your-model,hf_yyy,,,,,,
+No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+1,001,alice,Qwen/Qwen2.5-7B-Instruct,hf_xxx,,,,OK,,,,,,
+2,002,bob,your-org/your-model,hf_yyy,,,,OK,,,,,,
 ```
 
 | カラム | 説明 |
 |---|---|
-| `OmniAccount` | 識別用のアカウント名 |
+| `No` | 通し番号 |
 | `OmniID` | 識別用 ID |
-| `Pre-check` | `OK` のもののみ評価される |
-| `Model_Path` | HuggingFace モデルパス |
-| `READ_KEY` | HuggingFace トークン (READ権限) |
+| `OmniAccount` | 識別用のアカウント名 |
+| `model_path` | HuggingFace モデルパス |
+| `hf_token` | HuggingFace トークン (READ権限) |
+| `extract_status` | 抽出ステータス |
+| `Last_Update` | 最終更新日時 |
+| `Model_Status` | モデルステータス |
+| `PreCheck` | `OK` のもののみ評価される |
 | `Valid_Status` | 実行後に自動記入 (`Finish`, `vLLM-Error` 等) |
+
+結果ディレクトリは `{OmniID}_{OmniAccount}_` のプレフィックスで `massive_eval_results/` に保存されます。
 
 ### 実行
 

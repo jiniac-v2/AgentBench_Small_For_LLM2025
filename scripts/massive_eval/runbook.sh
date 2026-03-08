@@ -7,18 +7,21 @@ set -e
 # CSV に列挙された複数モデルを連続的に評価するオーケストレータ。
 # 各ステップは独立したスクリプトとして実装されている。
 #
+# NOTE: Prefect 版 (runbook.py) の利用を推奨。
+#       こちらは Prefect なしで実行したい場合のフォールバック。
+#
 # Usage:
 #   sudo bash scripts/massive_eval/runbook.sh [models.csv]
 #
 # CSV format (ヘッダー行必須):
-#   OmniAccount,OmniID,Pre-check,Model_Path,READ_KEY,
-#   Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+#   No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
+#   Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
 #
 # パイプライン:
 #   Step 1: step1_start_vllm.sh  - vLLM 立ち上げ (キャッシュクリア含む)
 #   Step 2: step2_evaluate.sh    - 評価実行 (タスクサーバー + assigner.py)
 #   Step 3: step3_analysis.sh    - analysis.py 実行
-#   Step 4: step4_organize.sh    - 結果整理 (OmniAccount プレフィックス)
+#   Step 4: step4_organize.sh    - 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
 #
 # Valid_Status:
 #   vLLM-Error    : vLLM の立ち上げ失敗
@@ -82,6 +85,30 @@ format_duration() {
     printf '%02d:%02d:%02d' $((seconds/3600)) $(((seconds%3600)/60)) $((seconds%60))
 }
 
+# CSV の指定行の特定カラムだけを更新する関数
+# Usage: update_csv_fields <line_num> <valid_status> <valid_time> [score] [db_bench] [alfworld]
+update_csv_fields() {
+    local line_num="$1"
+    local valid_status="$2"
+    local valid_time="$3"
+    local score="${4:-}"
+    local db_bench="${5:-}"
+    local alfworld="${6:-}"
+
+    # 現在の行を読み取り
+    local current_line
+    current_line="$(sed -n "${line_num}p" "$CSV_FILE")"
+
+    # カラム分割 (最大15カラム)
+    IFS=',' read -r c_no c_omni_id c_omni_account c_model_path c_hf_token \
+                    c_extract_status c_last_update c_model_status c_precheck \
+                    c_current_score c_valid_status c_valid_time c_score c_db_bench c_alfworld \
+                    <<< "$current_line"
+
+    local new_line="${c_no},${c_omni_id},${c_omni_account},${c_model_path},${c_hf_token},${c_extract_status},${c_last_update},${c_model_status},${c_precheck},${c_current_score},${valid_status},${valid_time},${score},${db_bench},${alfworld}"
+    sed -i "${line_num}s|.*|${new_line}|" "$CSV_FILE"
+}
+
 # ── メインループ ──────────────────────────────────
 
 echo ""
@@ -98,7 +125,8 @@ error_count=0
 skip_count=0
 
 csv_line_num=0
-while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
+while IFS=',' read -r no omni_id omni_account model_path hf_token \
+                       extract_status last_update model_status pre_check \
                        current_score valid_status valid_time score db_bench alfworld; do
     csv_line_num=$((csv_line_num + 1))
 
@@ -108,29 +136,31 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
     fi
 
     # 空行スキップ
-    if [ -z "$omni_account" ] || [ -z "$model_path" ]; then
+    if [ -z "$omni_id" ] || [ -z "$model_path" ]; then
         continue
     fi
 
     total_count=$((total_count + 1))
+    prefix="${omni_id}_${omni_account}_"
+    label="${omni_id}/${omni_account}"
 
-    # Pre-check が OK でなければスキップ
+    # PreCheck が OK でなければスキップ
     if [ "$pre_check" != "OK" ]; then
-        echo "[skip] ${omni_account} (OmniID=${omni_id}) -- Pre-check=${pre_check}"
+        echo "[skip] ${label} -- PreCheck=${pre_check}"
         skip_count=$((skip_count + 1))
         continue
     fi
 
     # 既に Finish ならスキップ
     if [ "$valid_status" = "Finish" ]; then
-        echo "[skip] ${omni_account} (OmniID=${omni_id}) -- already Finish"
+        echo "[skip] ${label} -- already Finish"
         skip_count=$((skip_count + 1))
         continue
     fi
 
     echo ""
     echo "============================================"
-    echo " [${total_count}] ${omni_account} (OmniID=${omni_id})"
+    echo " [${total_count}] ${label}"
     echo " Model: ${model_path}"
     echo "============================================"
 
@@ -138,16 +168,14 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
 
     # ────────────────────────────────────────────
     # パイプライン全体をサブシェルで実行し timeout で制限
-    # タイムアウト時は exit code 124 を返す
     # ────────────────────────────────────────────
-    # set +e で timeout の非ゼロ終了を捕捉する
     set +e
     timeout --kill-after=60 "${PIPELINE_TIMEOUT_SEC}" bash -c '
         set -e
-        SCRIPT_DIR="$1"; model_path="$2"; read_key="$3"; latest_output_file="$4"
+        SCRIPT_DIR="$1"; model_path="$2"; hf_token="$3"; latest_output_file="$4"
 
         # Step 1: vLLM 立ち上げ
-        bash "${SCRIPT_DIR}/step1_start_vllm.sh" "$model_path" "$read_key"
+        bash "${SCRIPT_DIR}/step1_start_vllm.sh" "$model_path" "$hf_token"
 
         # Step 2: 評価実行
         bash "${SCRIPT_DIR}/step2_evaluate.sh"
@@ -166,7 +194,7 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
 
         # latest_output パスを親に伝える
         echo "$latest_output" > "$latest_output_file"
-    ' _ "$SCRIPT_DIR" "$model_path" "$read_key" "/tmp/latest_output_$$" "$omni_account" "$RESULTS_BASE"
+    ' _ "$SCRIPT_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$RESULTS_BASE"
 
     pipeline_exit=$?
     set -e
@@ -175,11 +203,9 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
 
     # ── タイムアウト判定 ──
     if [ $pipeline_exit -eq 124 ] || [ $pipeline_exit -eq 137 ]; then
-        update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid_TimeOut,${duration},,,"
-        echo "[TIMEOUT] ${omni_account}: Valid_TimeOut (${duration})"
+        update_csv_fields "$csv_line_num" "Valid_TimeOut" "$duration"
+        echo "[TIMEOUT] ${label}: Valid_TimeOut (${duration})"
         error_count=$((error_count + 1))
-        # タイムアウト後のクリーンアップ: vLLM コンテナ停止
         docker stop agentbench-vllm 2>/dev/null || true
         rm -f "/tmp/latest_output_$$"
         continue
@@ -187,10 +213,8 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
 
     # ── エラー判定 ──
     if [ $pipeline_exit -ne 0 ]; then
-        # サブシェル内のどこかで失敗 — ログから判断
-        update_csv "$csv_line_num" \
-            "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Valid-Error,${duration},,,"
-        echo "[FAIL] ${omni_account}: Valid-Error (${duration})"
+        update_csv_fields "$csv_line_num" "Valid-Error" "$duration"
+        echo "[FAIL] ${label}: Valid-Error (${duration})"
         error_count=$((error_count + 1))
         rm -f "/tmp/latest_output_$$"
         continue
@@ -206,11 +230,10 @@ while IFS=',' read -r omni_account omni_id pre_check model_path read_key \
     scores_csv="$(extract_scores "$latest_output")"
     IFS=',' read -r score_val db_val alf_val <<< "$scores_csv"
 
-    update_csv "$csv_line_num" \
-        "${omni_account},${omni_id},${pre_check},${model_path},${read_key},${current_score},Finish,${duration},${score_val},${db_val},${alf_val}"
+    update_csv_fields "$csv_line_num" "Finish" "$duration" "$score_val" "$db_val" "$alf_val"
 
     echo ""
-    echo "[OK] ${omni_account}: Score=${score_val} DB=${db_val} ALF=${alf_val} Time=${duration}"
+    echo "[OK] ${label}: Score=${score_val} DB=${db_val} ALF=${alf_val} Time=${duration}"
     finish_count=$((finish_count + 1))
 
 done < "$CSV_FILE"
