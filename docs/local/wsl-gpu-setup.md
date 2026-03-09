@@ -26,19 +26,17 @@ Windows + WSL2 + NVIDIA GPU + **Docker Desktop** で AgentBench を動かすた�
 └─────────────────────────────────────────────────────┘
 ```
 
-**Docker Desktop を使う場合、WSL 内に Docker Engine や nvidia-container-toolkit を個別にインストールする必要はありません。** Docker Desktop が WSL 2 バックエンド経由ですべて管理します。
-
 ---
 
-## 前提条件
+## 前提条件 (3 ステップ)
 
-| 項目 | 要件 |
-|---|---|
-| OS | Windows 10 (21H2+) / Windows 11 |
-| GPU | NVIDIA (CUDA 対応、VRAM 12GB+ 推奨) |
-| RAM | 32GB 以上推奨 |
-| ディスク | SSD 200GB+ の空き |
-| WSL | バージョン 2 |
+やることは 3 つだけです:
+
+1. **Windows の NVIDIA ドライバを最新にする**
+2. **公式の CUDA Toolkit インストール手順を WSL の Ubuntu でやる**
+3. **Docker Desktop をインストールする**
+
+以下、それぞれの詳細です。
 
 ---
 
@@ -46,113 +44,58 @@ Windows + WSL2 + NVIDIA GPU + **Docker Desktop** で AgentBench を動かすた�
 
 普通に Windows 側の NVIDIA ドライバを最新にしておくだけで OK です。
 
-1. [NVIDIA ドライバダウンロード](https://www.nvidia.com/Download/index.aspx) から最新ドライバをダウンロード・インストール
-   - GeForce Experience / NVIDIA App からの更新でも可
-2. インストール後、Windows を再起動
+- [NVIDIA ドライバダウンロード](https://www.nvidia.com/Download/index.aspx) から最新ドライバをダウンロード・インストール
+- GeForce Experience / NVIDIA App からの更新でも可
+- インストール後、Windows を再起動
 
 > **重要**: WSL 内に `nvidia-driver-*` パッケージは **絶対にインストールしないでください**。
 > Windows 側のドライバが `/usr/lib/wsl/lib/` 経由で WSL 内に自動共有されます。
-> WSL 内にドライバを入れると競合してクラッシュします。
 
-### ドライバのバージョン確認 (Windows 側)
+### 確認
 
 ```powershell
 nvidia-smi
 ```
 
----
+### WSL2 の準備
 
-## Step 2: WSL2 のセットアップ
-
-### 2-1. WSL2 がまだの場合
-
-PowerShell (管理者) で:
+WSL2 がまだの場合は PowerShell (管理者) で:
 
 ```powershell
 wsl --install -d Ubuntu-22.04
 ```
 
-インストール後、再起動してユーザー名・パスワードを設定してください。
-
-> **カスタムディストリビューション名をつけたい場合** (参考記事の方法):
->
-> ```powershell
-> # 一旦デフォルト名でインストール
-> wsl --install -d Ubuntu-22.04
->
-> # エクスポート → 好きな名前でインポート
-> wsl --export Ubuntu-22.04 D:\wsl\ubuntu-22.04.tar
-> wsl --import MyAgentBench D:\wsl\MyAgentBench D:\wsl\ubuntu-22.04.tar
->
-> # 不要になったデフォルトを削除
-> wsl --unregister Ubuntu-22.04
-> ```
-
-### 2-2. WSL2 が既にある場合
-
-バージョンが 2 であることを確認:
+既にある場合はバージョン 2 であることを確認:
 
 ```powershell
 wsl -l -v
 ```
 
-```
-  NAME            STATE           VERSION
-* Ubuntu-22.04    Running         2
-```
-
-VERSION が `1` の場合は変換:
-
-```powershell
-wsl --set-version Ubuntu-22.04 2
-```
-
-### 2-3. WSL カーネルを最新に更新
+WSL カーネルも最新にしておく:
 
 ```powershell
 wsl --update
 ```
 
----
-
-## Step 3: WSL 内で GPU の動作確認
-
-WSL ターミナルで:
+WSL 内で `nvidia-smi` が動くことを確認:
 
 ```bash
 nvidia-smi
 ```
 
-GPU の情報が表示されれば OK:
-
-```
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 570.xx.xx    Driver Version: 570.xx.xx    CUDA Version: 12.x                 |
-|   ...
-| GPU  Name        ...
-|   0  NVIDIA GeForce RTX 4090  ...
-+-----------------------------------------------------------------------------------------+
-```
-
-**表示されない場合のトラブルシューティング**:
-
-1. Windows 側の NVIDIA ドライバが最新か確認
-2. WSL を再起動: PowerShell で `wsl --shutdown` → WSL を再度開く
-3. WSL カーネルを更新: `wsl --update`
-4. `/usr/lib/wsl/lib/nvidia-smi` が存在するか確認:
-   ```bash
-   ls -la /usr/lib/wsl/lib/nvidia-smi
-   ```
-   存在しない場合、Windows 側のドライバの再インストールが必要です
-
 ---
 
-## Step 3.5 (任意): CUDA Toolkit のインストール
+## Step 2: WSL の Ubuntu に CUDA Toolkit をインストールする
 
-> **AgentBench の評価実行だけなら不要です。** vLLM は Docker コンテナ内に独自の CUDA ランタイムを持つため、ホスト側の CUDA Toolkit はコンテナ動作に影響しません。
-> ただし、WSL 内で直接 PyTorch を動かす・CUDA コードをコンパイルするなどの用途がある場合はインストールしてください。
+[NVIDIA CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads) で以下を選択:
 
-NVIDIA 公式の **WSL-Ubuntu 専用リポジトリ** からインストールします。
+- **Operating System**: Linux
+- **Architecture**: x86_64
+- **Distribution**: WSL-Ubuntu
+- **Version**: 2.0
+- **Installer Type**: deb (network)
+
+表示されたコマンドをそのまま WSL 内で実行します:
 
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
@@ -161,10 +104,10 @@ sudo apt-get update
 sudo apt-get -y install cuda-toolkit-12-6
 ```
 
-> **バージョンについて**: `cuda-toolkit-12-6` の部分は使いたいバージョンに合わせて変更してください (例: `cuda-toolkit-13-2`)。
-> 利用可能なバージョンは `apt-cache search cuda-toolkit` で確認できます。
+> **バージョンについて**: `cuda-toolkit-12-6` の部分はページに表示されたバージョンに合わせてください。
+> 最新版をインストールしたい場合は、ダウンロードページの指示に従ってください。
 
-インストール後、PATH を通します:
+### PATH を通す
 
 ```bash
 echo 'export PATH="/usr/local/cuda/bin:$PATH"' >> ~/.bashrc
@@ -172,7 +115,7 @@ echo 'export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"' >> ~/.bas
 source ~/.bashrc
 ```
 
-動作確認:
+### 確認
 
 ```bash
 nvcc --version
@@ -184,13 +127,13 @@ nvcc --version
 
 ---
 
-## Step 4: Docker Desktop のインストールと設定
+## Step 3: Docker Desktop をインストールする
 
-### 4-1. Docker Desktop のインストール
+### 3-1. インストール
 
 [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) からダウンロードしてインストールします。
 
-### 4-2. WSL 2 バックエンドの有効化
+### 3-2. WSL 2 バックエンドの有効化
 
 Docker Desktop の設定画面 (`Settings`) で:
 
@@ -205,7 +148,7 @@ Settings > Resources > WSL integration
 
 3. `Apply & restart` をクリック
 
-### 4-3. Docker Desktop の GPU サポート確認
+### 3-3. GPU パススルーの確認
 
 Docker Desktop は WSL 2 バックエンド利用時に **自動的に GPU をサポート** します。
 追加の nvidia-container-toolkit のインストールは不要です。
@@ -221,7 +164,7 @@ docker compose version
 docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
-GPU 情報が表示されれば Docker 経由の GPU アクセスは正常です。
+GPU 情報が表示されれば前提条件は **すべてクリア** です。
 
 **動作しない場合**:
 
@@ -232,7 +175,46 @@ GPU 情報が表示されれば Docker 経由の GPU アクセスは正常です
 
 ---
 
-## Step 5: .wslconfig でリソース制限を調整
+## AgentBench のセットアップ
+
+前提条件が整ったら、AgentBench 本体のセットアップに進みます。
+
+### リポジトリのクローン
+
+```bash
+cd ~
+git clone https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git
+cd AgentBench_Small_For_LLM2025
+```
+
+> **private リポの場合**: GitHub PAT を使って clone してください。
+
+### Python 依存パッケージのインストール
+
+Docker Desktop を使う場合、`setup1.sh` の Docker / nvidia-container-toolkit のインストールは不要です。
+Python 環境のみ手動でセットアップします:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-pip cmake build-essential
+pip3 install -r requirements.txt
+```
+
+依存パッケージの検証:
+
+```bash
+python3 -c "import gym; import alfworld; import docker; import torch; print('OK')"
+```
+
+### ALFWorld データと設定ファイル
+
+```bash
+bash scripts/setup/setup2.sh
+```
+
+> `setup2.sh` は ALFWorld ランタイムデータのダウンロード、`.env` 生成、Docker イメージの pull を行います。
+
+### .wslconfig でリソース制限を調整
 
 WSL2 はデフォルトで Windows の物理メモリの 50% しか使えません。
 vLLM は大量のメモリを使うため、制限を緩和します。
@@ -253,56 +235,11 @@ swap=8GB
 wsl --shutdown
 ```
 
-WSL を再度開いてメモリ制限を確認:
-
-```bash
-free -h
-```
-
 ---
 
-## Step 6: リポジトリのクローンと Python 環境構築
+## vLLM の起動
 
-### 6-1. クローン
-
-```bash
-cd ~
-git clone https://github.com/nshiki08/AgentBench_Small_For_LLM2025.git
-cd AgentBench_Small_For_LLM2025
-```
-
-> **private リポの場合**: GitHub PAT を使って clone してください。
-
-### 6-2. Python 依存パッケージのインストール
-
-Docker Desktop を使う場合、`setup1.sh` の Docker / nvidia-container-toolkit のインストールは不要です。
-Python 環境のみ手動でセットアップします:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y python3-pip cmake build-essential
-pip3 install -r requirements.txt
-```
-
-依存パッケージの検証:
-
-```bash
-python3 -c "import gym; import alfworld; import docker; import torch; print('OK')"
-```
-
-### 6-3. ALFWorld データと設定ファイル
-
-```bash
-bash scripts/setup/setup2.sh
-```
-
-> `setup2.sh` は ALFWorld ランタイムデータのダウンロード、`.env` 生成、Docker イメージの pull を行います。
-
----
-
-## Step 7: vLLM の起動
-
-### 7-1. .env の設定
+### .env の設定
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
@@ -319,13 +256,13 @@ VLLM_GPU_MEMORY_UTILIZATION=0.95
 HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxx    # gated model の場合
 ```
 
-### 7-2. docker compose で起動
+### docker compose で起動
 
 ```bash
 docker compose up -d
 ```
 
-### 7-3. 起動確認
+### 起動確認
 
 ```bash
 # コンテナのステータス確認
@@ -338,7 +275,7 @@ docker compose logs -f vllm
 curl -s http://localhost:8000/v1/models | python3 -m json.tool
 ```
 
-### 7-4. モデルの切り替え
+### モデルの切り替え
 
 別のモデルに切り替えるには:
 
@@ -438,7 +375,7 @@ docker compose up -d
 free -h
 ```
 
-`%UserProfile%\.wslconfig` の `memory` を増やしてください (→ [Step 5](#step-5-wslconfig-でリソース制限を調整))。
+`%UserProfile%\.wslconfig` の `memory` を増やしてください。
 
 ### Docker Desktop が WSL ディストロを認識しない
 
