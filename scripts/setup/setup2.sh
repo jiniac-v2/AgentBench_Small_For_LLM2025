@@ -13,6 +13,7 @@ set -e
 # ---- 設定 ----
 VLLM_MODEL="${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}"
 HF_TOKEN="${HF_TOKEN:-}"
+SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
 # ---------------
 
 # Auto-detect APP_DIR from script location
@@ -69,7 +70,12 @@ echo "[2/3] Generating configuration..."
 cat > "${APP_DIR}/.env" <<EOF
 VLLM_MODEL=${VLLM_MODEL}
 HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
 EOF
+
+if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+  echo "  INFO: SLACK_WEBHOOK_URL 未設定。大規模評価の通知を有効にするには .env に追記してください。"
+fi
 
 # agent config のモデル名を置換 (インデントされた model: 行のみ)
 sed -i "s|\${VLLM_MODEL}|${VLLM_MODEL}|g" "${APP_DIR}/configs/agents/api_agents.yaml"
