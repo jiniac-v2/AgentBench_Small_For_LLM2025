@@ -66,6 +66,7 @@ fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 
+pip install --upgrade pip setuptools wheel
 pip install -r "${APP_DIR}/requirements.txt"
 
 # 必須モジュールの検証
