@@ -185,8 +185,8 @@ VM 上で以下を実行します。**方法 A (既存 VM) でも方法 B (Terra
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 
-# (1) Docker / NVIDIA / Python 依存 の用意(要 sudo)
-sudo bash infra/gcp/setup1.sh
+# (1) Docker / NVIDIA / Python 依存 の用意(内部で必要な箇所のみ sudo)
+bash infra/gcp/setup1.sh
 
 # docker グループ反映のため再ログイン
 exit

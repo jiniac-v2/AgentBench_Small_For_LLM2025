@@ -9,7 +9,7 @@ set -e
 # Python 依存パッケージのみセットアップします。
 #
 # Usage:
-#   sudo bash infra/wsl/setup1_desktop.sh
+#   bash infra/wsl/setup1_desktop.sh
 #
 # 前提:
 #   - Docker Desktop for Windows がインストール済み
@@ -20,17 +20,16 @@ set -e
 # ============================================================
 
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-ACTUAL_USER="${SUDO_USER:-$(whoami)}"
 
 echo "=== setup1_desktop: Python dependencies (Docker Desktop) ==="
 echo "APP_DIR: ${APP_DIR}"
-echo "User:    ${ACTUAL_USER}"
+echo "User:    $(whoami)"
 echo ""
 
 # ============================================================
 # 1. Docker Desktop の動作確認
 # ============================================================
-echo "[1/3] Checking Docker Desktop..."
+echo "[1/2] Checking Docker Desktop..."
 if ! command -v docker &> /dev/null; then
     echo "ERROR: docker コマンドが見つかりません。"
     echo "  Docker Desktop が起動しているか確認してください。"
@@ -54,11 +53,11 @@ fi
 # ============================================================
 # 2. Python 依存パッケージ
 # ============================================================
-echo "[2/3] Installing Python dependencies..."
-apt-get update
-apt-get install -y python3-pip cmake build-essential
+echo "[2/2] Installing Python dependencies..."
+sudo apt-get update
+sudo apt-get install -y python3-pip cmake build-essential
 if ! command -v python &> /dev/null; then
-    ln -s "$(which python3)" /usr/local/bin/python
+    sudo ln -s "$(which python3)" /usr/local/bin/python
 fi
 pip3 install -r "${APP_DIR}/requirements.txt"
 
@@ -69,13 +68,6 @@ python3 -c "import alfworld" || { echo "ERROR: alfworld not installed. Try: pip3
 python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; exit 1; }
 python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alfworld."; exit 1; }
 echo "  All dependencies verified."
-
-# ============================================================
-# 3. root で作られたファイルの所有権を戻す
-# ============================================================
-echo "[3/3] Fixing file ownership for ${ACTUAL_USER}..."
-chown -R "${ACTUAL_USER}:${ACTUAL_USER}" "${APP_DIR}"
-[ -d /tmp/alfworld ] && rm -rf /tmp/alfworld
 
 # ============================================================
 # 完了

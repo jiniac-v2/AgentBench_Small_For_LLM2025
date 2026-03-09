@@ -104,8 +104,8 @@ cd AgentBench_Small_For_LLM2025
 ### Docker Engine 版 (setup1.sh)
 
 ```bash
-# (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (要 sudo)
-sudo bash infra/wsl/setup1.sh
+# (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (内部で必要な箇所のみ sudo)
+bash infra/wsl/setup1.sh
 ```
 
 ```bash
@@ -116,8 +116,8 @@ newgrp docker          # または exit → 再接続
 ### Docker Desktop 版 (setup1_desktop.sh)
 
 ```bash
-# (1) Python 依存のみ (要 sudo)
-sudo bash infra/wsl/setup1_desktop.sh
+# (1) Python 依存のみ (内部で必要な箇所のみ sudo)
+bash infra/wsl/setup1_desktop.sh
 ```
 
 > Docker Desktop 版は docker グループへの追加や再ログインは不要です。
