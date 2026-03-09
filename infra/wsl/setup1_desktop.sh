@@ -51,23 +51,23 @@ else
 fi
 
 # ============================================================
-# 2. Python 3.11 + 仮想環境 + 依存パッケージ
-#    alfworld/spacy/thinc が Python 3.12 非対応のため 3.11 を使用
+# 2. Python 3.10 + 仮想環境 + 依存パッケージ
+#    alfworld/spacy/thinc が Python 3.12 非対応のため 3.10 を使用
 # ============================================================
-echo "[2/2] Installing Python 3.11 and dependencies..."
+echo "[2/2] Installing Python 3.10 and dependencies..."
 sudo apt-get update
-if ! command -v python3.11 &> /dev/null; then
-    echo "  Installing Python 3.11 from deadsnakes PPA..."
+if ! command -v python3.10 &> /dev/null; then
+    echo "  Installing Python 3.10 from deadsnakes PPA..."
     sudo add-apt-repository -y ppa:deadsnakes/ppa
     sudo apt-get update
 fi
-sudo apt-get install -y python3.11 python3.11-venv python3.11-dev cmake build-essential
+sudo apt-get install -y python3.10 python3.10-venv python3.10-dev cmake build-essential
 
-# venv の作成 (Python 3.11)
+# venv の作成 (Python 3.10)
 VENV_DIR="${APP_DIR}/.venv"
 if [ ! -d "${VENV_DIR}" ]; then
-    echo "  Creating virtual environment (Python 3.11): ${VENV_DIR}"
-    python3.11 -m venv "${VENV_DIR}"
+    echo "  Creating virtual environment (Python 3.10): ${VENV_DIR}"
+    python3.10 -m venv "${VENV_DIR}"
 fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
