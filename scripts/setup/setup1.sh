@@ -2,12 +2,14 @@
 set -e
 
 # ============================================================
-# AgentBench VM セットアップ (1/3)
+# AgentBench VM セットアップ (1/3) — Docker Engine 版
 #
 # Docker Engine, NVIDIA Container Toolkit, Python 依存パッケージ
 #
 # Usage:
 #   sudo bash scripts/setup/setup1.sh
+#
+# Docker Desktop を使う場合: setup1_desktop.sh を使ってください
 # ============================================================
 
 # Auto-detect APP_DIR from script location

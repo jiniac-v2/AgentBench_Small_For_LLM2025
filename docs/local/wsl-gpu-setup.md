@@ -189,22 +189,21 @@ cd AgentBench_Small_For_LLM2025
 
 > **private リポの場合**: GitHub PAT を使って clone してください。
 
-### Python 依存パッケージのインストール
+### セットアップスクリプト (Docker Desktop 版)
 
-Docker Desktop を使う場合、`setup1.sh` の Docker / nvidia-container-toolkit のインストールは不要です。
-Python 環境のみ手動でセットアップします:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y python3-pip cmake build-essential
-pip3 install -r requirements.txt
-```
-
-依存パッケージの検証:
+Docker Desktop 用の専用セットアップスクリプトを使います。
+Docker Engine / nvidia-container-toolkit のインストールはスキップし、Python 依存のみセットアップします:
 
 ```bash
-python3 -c "import gym; import alfworld; import docker; import torch; print('OK')"
+# (1) Python 依存パッケージ (要 sudo)
+sudo bash scripts/setup/setup1_desktop.sh
 ```
+
+> **Docker Engine 版** (`setup1.sh`) との違い:
+> - Docker Engine のインストールをスキップ (Docker Desktop が提供)
+> - nvidia-container-toolkit のインストールをスキップ (Docker Desktop が管理)
+> - docker グループへの追加をスキップ (Docker Desktop が管理)
+> - GPU パススルーの動作確認を自動実行
 
 ### ALFWorld データと設定ファイル
 

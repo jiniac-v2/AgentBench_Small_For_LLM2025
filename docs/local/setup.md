@@ -96,28 +96,39 @@ cd AgentBench_Small_For_LLM2025
 
 ## Step 4: セットアップスクリプト
 
+| スクリプト | 用途 |
+|---|---|
+| `setup1.sh` | **Docker Engine 版** — Docker Engine + nvidia-container-toolkit + Python 依存 |
+| `setup1_desktop.sh` | **Docker Desktop 版** — Python 依存のみ (Docker は Docker Desktop が管理) |
+
+### Docker Engine 版 (setup1.sh)
+
 ```bash
-# (1) Docker / NVIDIA Container Toolkit / Python 依存 (要 sudo)
+# (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (要 sudo)
 sudo bash scripts/setup/setup1.sh
 ```
 
 ```bash
 # docker グループ反映のため再ログイン
-# 以下のどちらか:
-newgrp docker          # 現在のシェルに反映
-# または
-exit                   # WSL を閉じて再度開く
+newgrp docker          # または exit → 再接続
 ```
+
+### Docker Desktop 版 (setup1_desktop.sh)
+
+```bash
+# (1) Python 依存のみ (要 sudo)
+sudo bash scripts/setup/setup1_desktop.sh
+```
+
+> Docker Desktop 版は docker グループへの追加や再ログインは不要です。
+
+### 共通: setup2.sh
 
 ```bash
 # (2) ALFWorld データ / .env / Docker イメージ pull
 cd ~/AgentBench_Small_For_LLM2025
 bash scripts/setup/setup2.sh
 ```
-
-> **WSL 固有の注意**: `setup1.sh` 内で Docker Engine と NVIDIA Container Toolkit がインストールされます。
-> WSL2 では Docker Desktop は **不要** です（Docker Engine が直接動作します）。
-> Docker Desktop を使いたい場合は、WSL integration を有効にして `setup1.sh` の Docker インストール部分をスキップしてください。
 
 ---
 
