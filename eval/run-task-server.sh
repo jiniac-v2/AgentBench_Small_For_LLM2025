@@ -8,6 +8,10 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Activate venv
+# shellcheck disable=SC1091
+[ -f .venv/bin/activate ] && source .venv/bin/activate
+
 case "${1:-}" in
   alf) CONFIG="configs/start_task_alf.yaml" ;;
   db)  CONFIG="configs/start_task_db.yaml"  ;;

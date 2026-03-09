@@ -2,6 +2,12 @@
 
 実験のたびに実行する手順です。環境構築は済んでいる前提: [ローカル環境構築](setup.md)
 
+> **Note**: `python3` を直接実行する場合は、事前に仮想環境を有効化してください:
+> ```bash
+> cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
+> ```
+> `bash eval/...` で実行するスクリプトは内部で自動的に有効化します。
+
 ---
 
 ## Step 1: モデル切替
@@ -75,6 +81,7 @@ bash eval/run-task-server.sh
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
+source .venv/bin/activate
 python3 -m src.assigner -c configs/assignments/default.yaml 2>&1 | tee outputs/execution.log
 ```
 

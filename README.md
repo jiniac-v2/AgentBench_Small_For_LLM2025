@@ -50,6 +50,9 @@ CSV に列挙した複数モデルを連続で評価するパイプラインで�
 詳細は [評価の実行 → 複数モデル一括実行](infra/gcp/runbook.md#複数モデル一括実行) を参照してください。
 
 ```bash
+# 仮想環境を有効化
+source .venv/bin/activate
+
 # Prefect サーバー起動 (別ターミナル)
 prefect server start
 

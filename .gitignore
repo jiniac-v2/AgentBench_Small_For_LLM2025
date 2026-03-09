@@ -15,6 +15,7 @@ analysis
 
 # Environment
 .env
+.venv/
 
 # Terraform
 terraform/.terraform/

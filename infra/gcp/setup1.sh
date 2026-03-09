@@ -71,19 +71,26 @@ else
 fi
 
 # ============================================================
-# 4. Python 依存パッケージ
+# 4. Python 仮想環境 + 依存パッケージ
 # ============================================================
 echo "[4/4] Installing Python dependencies..."
-sudo apt-get install -y python3-pip cmake build-essential
-if ! command -v python &> /dev/null; then
-  sudo ln -s "$(which python3)" /usr/local/bin/python
+sudo apt-get install -y python3-pip python3-venv cmake build-essential
+
+# venv の作成
+VENV_DIR="${APP_DIR}/.venv"
+if [ ! -d "${VENV_DIR}" ]; then
+  echo "  Creating virtual environment: ${VENV_DIR}"
+  python3 -m venv "${VENV_DIR}"
 fi
-pip3 install -r "${APP_DIR}/requirements.txt"
+# shellcheck disable=SC1091
+source "${VENV_DIR}/bin/activate"
+
+pip install -r "${APP_DIR}/requirements.txt"
 
 # 必須モジュールの検証
 echo "  Verifying critical dependencies..."
-python3 -c "import gym" || { echo "ERROR: gym not installed. Try: pip3 install gym"; exit 1; }
-python3 -c "import alfworld" || { echo "ERROR: alfworld not installed. Try: pip3 install alfworld"; exit 1; }
+python3 -c "import gym" || { echo "ERROR: gym not installed."; exit 1; }
+python3 -c "import alfworld" || { echo "ERROR: alfworld not installed."; exit 1; }
 python3 -c "import docker" || { echo "ERROR: docker (python) not installed."; exit 1; }
 python3 -c "import torch" || { echo "ERROR: torch not installed. Required by alfworld."; exit 1; }
 echo "  All dependencies verified."

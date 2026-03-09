@@ -29,6 +29,10 @@ fi
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Activate venv
+# shellcheck disable=SC1091
+[ -f "${APP_DIR}/.venv/bin/activate" ] && source "${APP_DIR}/.venv/bin/activate"
+
 echo "============================================"
 echo " [Step1] vLLM 立ち上げ (docker compose)"
 echo " Model: ${VLLM_MODEL}"

@@ -18,6 +18,12 @@ HF_TOKEN="${HF_TOKEN:-}"
 # Auto-detect APP_DIR from script location
 APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
+# Activate venv
+# shellcheck disable=SC1091
+if [ -f "${APP_DIR}/.venv/bin/activate" ]; then
+  source "${APP_DIR}/.venv/bin/activate"
+fi
+
 echo "=== setup2: ALFWorld / config / Docker images ==="
 echo "APP_DIR:    ${APP_DIR}"
 echo "User:       $(whoami)"

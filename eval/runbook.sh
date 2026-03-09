@@ -33,6 +33,11 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Activate venv
+# shellcheck disable=SC1091
+[ -f "${APP_DIR}/.venv/bin/activate" ] && source "${APP_DIR}/.venv/bin/activate"
+
 CSV_FILE="${1:-${SCRIPT_DIR}/models.csv}"
 RESULTS_BASE="${APP_DIR}/eval_results"
 
