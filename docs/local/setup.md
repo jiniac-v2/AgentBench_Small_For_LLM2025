@@ -241,7 +241,7 @@ systemd=true
 |---|---|---|
 | RTX 3060 | 12GB | 〜7B (4bit量子化) |
 | RTX 3090 / 4090 | 24GB | 〜14B |
-| RTX 4090 | 24GB | 〜14B |
+| RTX 5090 | 32GB | 〜14B (余裕あり) |
 | A100 / H100 | 40-80GB | 〜70B |
 
 > `gpu-memory-utilization=0.95` はデフォルトで VRAM の 95% を使います。

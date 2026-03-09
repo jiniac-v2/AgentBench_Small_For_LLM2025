@@ -42,11 +42,12 @@ Windows + WSL2 + NVIDIA GPU + **Docker Desktop** で AgentBench を動かすた�
 
 ---
 
-## Step 1: Windows 側 — NVIDIA GPU ドライバのインストール
+## Step 1: Windows 側 — NVIDIA GPU ドライバを最新にする
 
-WSL2 で GPU を使うには **Windows 側にのみ** NVIDIA ドライバをインストールします。
+普通に Windows 側の NVIDIA ドライバを最新にしておくだけで OK です。
 
-1. [NVIDIA ドライバダウンロード](https://www.nvidia.com/Download/index.aspx) から **最新の Game Ready / Studio ドライバ** をダウンロード・インストール
+1. [NVIDIA ドライバダウンロード](https://www.nvidia.com/Download/index.aspx) から最新ドライバをダウンロード・インストール
+   - GeForce Experience / NVIDIA App からの更新でも可
 2. インストール後、Windows を再起動
 
 > **重要**: WSL 内に `nvidia-driver-*` パッケージは **絶対にインストールしないでください**。
@@ -58,8 +59,6 @@ WSL2 で GPU を使うには **Windows 側にのみ** NVIDIA ドライバをイ�
 ```powershell
 nvidia-smi
 ```
-
-`Driver Version: 570.xx.xx` 以上であることを確認してください。
 
 ---
 
@@ -362,6 +361,7 @@ docker compose up -d
 |---|---|---|
 | RTX 3060 | 12GB | ~7B (4bit 量子化) |
 | RTX 3090 / 4090 | 24GB | ~14B |
+| RTX 5090 | 32GB | ~14B (余裕あり) |
 | A100 / H100 | 40-80GB | ~70B |
 
 > `VLLM_GPU_MEMORY_UTILIZATION=0.95` はデフォルトで VRAM の 95% を使います。
