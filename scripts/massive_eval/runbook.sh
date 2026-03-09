@@ -11,14 +11,17 @@ set -e
 #       こちらは Prefect なしで実行したい場合のフォールバック。
 #
 # Usage:
-#   sudo bash scripts/massive_eval/runbook.sh [models.csv]
+#   sudo bash scripts/massive_eval/runbook.sh [models.csv]    # GCP (systemd)
+#   bash scripts/massive_eval/runbook.sh [models.csv]          # WSL (docker compose)
 #
 # CSV format (ヘッダー行必須):
 #   No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
 #   Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
 #
 # パイプライン:
-#   Step 1: step1_start_vllm.sh  - vLLM 立ち上げ (キャッシュクリア含む)
+#   Step 1: step1_start_vllm.sh       - vLLM 立ち上げ [GCP: systemd]
+#           step1_start_vllm_local.sh - vLLM 立ち上げ [WSL: docker compose]
+#           ※ 環境自動判別で切り替え
 #   Step 2: step2_evaluate.sh    - 評価実行 (タスクサーバー + assigner.py)
 #   Step 3: step3_analysis.sh    - analysis.py 実行
 #   Step 4: step4_organize.sh    - 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
@@ -38,6 +41,15 @@ RESULTS_BASE="${APP_DIR}/massive_eval_results"
 
 # 1モデルあたりの制限時間 (2時間20分 = 8400秒)
 PIPELINE_TIMEOUT_SEC=8400
+
+# ── 環境判別: systemd が使えれば GCP 版、なければ WSL/ローカル版 ──
+if pidof systemd >/dev/null 2>&1 && systemctl is-active docker >/dev/null 2>&1; then
+    STEP1_SCRIPT="${SCRIPT_DIR}/step1_start_vllm.sh"
+    RUNTIME_MODE="cloud"
+else
+    STEP1_SCRIPT="${SCRIPT_DIR}/step1_start_vllm_local.sh"
+    RUNTIME_MODE="local"
+fi
 
 if [ ! -f "$CSV_FILE" ]; then
     echo "ERROR: CSV file not found: $CSV_FILE"
@@ -116,6 +128,7 @@ echo "============================================"
 echo " Massive Evaluation Runbook"
 echo " CSV:     ${CSV_FILE}"
 echo " Results: ${RESULTS_BASE}"
+echo " Mode:    ${RUNTIME_MODE} (${STEP1_SCRIPT##*/})"
 echo "============================================"
 echo ""
 
@@ -173,9 +186,10 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
     timeout --kill-after=60 "${PIPELINE_TIMEOUT_SEC}" bash -c '
         set -e
         SCRIPT_DIR="$1"; model_path="$2"; hf_token="$3"; latest_output_file="$4"
+        prefix="$5"; step1_script="$6"; results_base="$7"
 
-        # Step 1: vLLM 立ち上げ
-        bash "${SCRIPT_DIR}/step1_start_vllm.sh" "$model_path" "$hf_token"
+        # Step 1: vLLM 立ち上げ (環境に応じたスクリプトを使用)
+        bash "$step1_script" "$model_path" "$hf_token"
 
         # Step 2: 評価実行
         bash "${SCRIPT_DIR}/step2_evaluate.sh"
@@ -190,11 +204,11 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
         bash "${SCRIPT_DIR}/step3_analysis.sh" "$latest_output"
 
         # Step 4: 評価コンテンツの整理
-        bash "${SCRIPT_DIR}/step4_organize.sh" "$5" "$latest_output" "$6"
+        bash "${SCRIPT_DIR}/step4_organize.sh" "$prefix" "$latest_output" "$results_base"
 
         # latest_output パスを親に伝える
         echo "$latest_output" > "$latest_output_file"
-    ' _ "$SCRIPT_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$RESULTS_BASE"
+    ' _ "$SCRIPT_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$STEP1_SCRIPT" "$RESULTS_BASE"
 
     pipeline_exit=$?
     set -e
@@ -206,7 +220,11 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
         update_csv_fields "$csv_line_num" "Valid_TimeOut" "$duration"
         echo "[TIMEOUT] ${label}: Valid_TimeOut (${duration})"
         error_count=$((error_count + 1))
-        docker stop agentbench-vllm 2>/dev/null || true
+        if [ "$RUNTIME_MODE" = "local" ]; then
+            cd "${APP_DIR}" && docker compose down 2>/dev/null || true
+        else
+            docker stop agentbench-vllm 2>/dev/null || true
+        fi
         rm -f "/tmp/latest_output_$$"
         continue
     fi
