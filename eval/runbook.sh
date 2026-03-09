@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-# Massive Evaluation Runbook
+# Evaluation Runbook
 #
 # CSV に列挙された複数モデルを連続的に評価するオーケストレータ。
 # 各ステップは独立したスクリプトとして実装されている。
@@ -11,7 +11,7 @@ set -e
 #       こちらは Prefect なしで実行したい場合のフォールバック。
 #
 # Usage:
-#   bash eval/massive/runbook.sh [models.csv]
+#   bash eval/runbook.sh [models.csv]
 #
 # CSV format (ヘッダー行必須):
 #   No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
@@ -32,9 +32,9 @@ set -e
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CSV_FILE="${1:-${SCRIPT_DIR}/models.csv}"
-RESULTS_BASE="${APP_DIR}/massive_eval_results"
+RESULTS_BASE="${APP_DIR}/eval_results"
 
 # 1モデルあたりの制限時間 (2時間20分 = 8400秒)
 PIPELINE_TIMEOUT_SEC=8400
@@ -115,7 +115,7 @@ update_csv_fields() {
 
 echo ""
 echo "============================================"
-echo " Massive Evaluation Runbook"
+echo " Evaluation Runbook"
 echo " CSV:     ${CSV_FILE}"
 echo " Results: ${RESULTS_BASE}"
 echo " Mode:    docker compose"
@@ -185,7 +185,7 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
         bash "${SCRIPT_DIR}/step2_evaluate.sh"
 
         # Step 3: analysis.py 実行
-        APP_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+        APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
         latest_output="$(ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1)"
         if [ -z "$latest_output" ]; then
             echo "ERROR: no output directory found" >&2
@@ -244,7 +244,7 @@ done < "$CSV_FILE"
 
 echo ""
 echo "============================================"
-echo " Massive Evaluation 完了"
+echo " Evaluation 完了"
 echo "============================================"
 echo " 合計:   ${total_count}"
 echo " 成功:   ${finish_count}"

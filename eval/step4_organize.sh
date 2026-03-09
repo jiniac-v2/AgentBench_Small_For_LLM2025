@@ -5,7 +5,7 @@ set -e
 # Step 4: 評価コンテンツの整理
 #
 # Usage:
-#   bash eval/massive/step4_organize.sh <omni_account> <output_dir> [results_base]
+#   bash eval/step4_organize.sh <omni_account> <output_dir> [results_base]
 #
 # 処理:
 #   1. outputs ディレクトリ (analysis 結果含む) を
@@ -17,8 +17,8 @@ set -e
 
 OMNI_ACCOUNT="$1"
 OUTPUT_DIR="$2"
-APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-RESULTS_BASE="${3:-${APP_DIR}/massive_eval_results}"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+RESULTS_BASE="${3:-${APP_DIR}/eval_results}"
 
 if [ -z "$OMNI_ACCOUNT" ] || [ -z "$OUTPUT_DIR" ]; then
     echo "ERROR: Usage: $0 <omni_account> <output_dir> [results_base]"

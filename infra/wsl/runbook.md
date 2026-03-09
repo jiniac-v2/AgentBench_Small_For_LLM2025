@@ -227,9 +227,9 @@ WSL2 のデフォルトメモリ上限に引っかかっている可能性があ
 
 ---
 
-## 大規模評価 (複数モデル一括実行)
+## 複数モデル一括実行
 
-ローカル環境でも大規模評価パイプラインを利用できます。
+ローカル環境でも評価パイプラインを利用できます。
 クラウド版と同じ仕組みです。docker compose で vLLM を管理します。
 
 ### セットアップ
@@ -240,7 +240,7 @@ pip install "prefect>=3.0,<4.0"
 
 ### CSV の準備
 
-[クラウド版と同じフォーマット](../gcp/runbook.md#csv-の準備) で `eval/massive/models.csv` を作成してください。
+[クラウド版と同じフォーマット](../gcp/runbook.md#csv-の準備) で `eval/models.csv` を作成してください。
 
 ### 実行
 
@@ -250,7 +250,7 @@ prefect server start
 
 # ターミナル 2: 評価実行
 cd ~/AgentBench_Small_For_LLM2025
-python3 eval/massive/runbook.py [models.csv]
+python3 eval/runbook.py [models.csv]
 ```
 
 ### Prefect UI で進捗確認

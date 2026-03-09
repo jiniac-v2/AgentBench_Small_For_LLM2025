@@ -202,7 +202,7 @@ docker compose logs --tail=50 vllm
 
 ---
 
-## 大規模評価 (複数モデル一括実行)
+## 複数モデル一括実行
 
 複数モデルを CSV 駆動で一括評価するパイプラインです。
 [Prefect](https://www.prefect.io/) による GUI 監視と Slack 通知に対応しています。
@@ -228,7 +228,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxxx
 
 ### CSV の準備
 
-`eval/massive/models.csv` を作成します。
+`eval/models.csv` を作成します。
 
 ```csv
 No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
@@ -249,7 +249,7 @@ No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Model_Statu
 | `PreCheck` | `OK` のもののみ評価される |
 | `Valid_Status` | 実行後に自動記入 (`Finish`, `vLLM-Error` 等) |
 
-結果ディレクトリは `{OmniID}_{OmniAccount}_` のプレフィックスで `massive_eval_results/` に保存されます。
+結果ディレクトリは `{OmniID}_{OmniAccount}_` のプレフィックスで `eval_results/` に保存されます。
 
 ### 実行
 
@@ -259,7 +259,7 @@ prefect server start
 
 # ターミナル 2: 評価実行
 cd ~/AgentBench_Small_For_LLM2025
-python3 eval/massive/runbook.py [models.csv]
+python3 eval/runbook.py [models.csv]
 ```
 
 ### Prefect UI で進捗確認
@@ -308,5 +308,5 @@ gcloud compute ssh agentbench-eval \
 Prefect なしで従来通り実行することも可能です:
 
 ```bash
-bash eval/massive/runbook.sh [models.csv]
+bash eval/runbook.sh [models.csv]
 ```

@@ -5,7 +5,7 @@ set -e
 # Step 1: vLLM 立ち上げ (docker compose)
 #
 # Usage:
-#   bash eval/massive/step1_start_vllm.sh <model_path> <hf_token> [max_wait_sec]
+#   bash eval/step1_start_vllm.sh <model_path> <hf_token> [max_wait_sec]
 #
 # 処理:
 #   1. docker compose で既存 vLLM コンテナを停止・削除
@@ -27,7 +27,7 @@ if [ -z "$VLLM_MODEL" ]; then
     exit 1
 fi
 
-APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "============================================"
 echo " [Step1] vLLM 立ち上げ (docker compose)"

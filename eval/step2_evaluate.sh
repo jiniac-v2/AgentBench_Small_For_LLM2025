@@ -5,7 +5,7 @@ set -e
 # Step 2: 評価実行 (タスクサーバー + assigner.py)
 #
 # Usage:
-#   bash eval/massive/step2_evaluate.sh
+#   bash eval/step2_evaluate.sh
 #
 # 処理:
 #   1. 既存の run-task-server.sh でタスクサーバーをバックグラウンド起動
@@ -16,7 +16,7 @@ set -e
 #   0 = 評価成功, 1 = 評価失敗
 # ============================================================
 
-APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "============================================"
 echo " [Step2] 評価実行"

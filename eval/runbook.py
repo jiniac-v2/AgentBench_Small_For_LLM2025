@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Massive Evaluation Runbook (Prefect版)
+Evaluation Runbook (Prefect版)
 
 CSV に列挙された複数モデルを連続的に評価するオーケストレータ。
 各ステップは既存のシェルスクリプトをそのまま呼び出す。
@@ -23,7 +23,7 @@ Usage:
   prefect server start
 
   # 実行
-  python3 eval/massive/runbook.py [models.csv]
+  python3 eval/runbook.py [models.csv]
 
   # Prefect UI 確認 (SSH トンネル経由)
   gcloud compute ssh VM_NAME --ssh-flag="-L 4200:localhost:4200"
@@ -49,7 +49,7 @@ from prefect.states import Cancelled
 
 PIPELINE_TIMEOUT_SEC = 8400  # 2h20m per model
 SCRIPT_DIR = Path(__file__).resolve().parent
-APP_DIR = SCRIPT_DIR.parent.parent
+APP_DIR = SCRIPT_DIR.parent
 
 # ── Slack 通知 ──────────────────────────────────────
 
@@ -270,13 +270,13 @@ def evaluate_model(
 # ── メインフロー ────────────────────────────────────
 
 
-@flow(name="massive-evaluation", log_prints=True)
-def massive_eval(csv_file: str | None = None) -> None:
+@flow(name="evaluation", log_prints=True)
+def run_evaluation(csv_file: str | None = None) -> None:
     """CSV に記載された全モデルを順次評価する."""
     logger = get_run_logger()
 
     csv_path = csv_file or str(SCRIPT_DIR / "models.csv")
-    results_base = str(APP_DIR / "massive_eval_results")
+    results_base = str(APP_DIR / "eval_results")
     os.makedirs(results_base, exist_ok=True)
 
     # Slack Webhook URL (.env から取得)
@@ -487,4 +487,4 @@ if __name__ == "__main__":
                     os.environ.setdefault(key.strip(), value.strip())
 
     csv_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    massive_eval(csv_file=csv_arg)
+    run_evaluation(csv_file=csv_arg)

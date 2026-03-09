@@ -43,18 +43,18 @@
 | [環境構築](infra/gcp/setup.md) | GCP VM の構築・接続・管理 |
 | [評価の実行](infra/gcp/runbook.md) | クラウド評価の手順・監視・トラブルシューティング・大規模評価 |
 
-### 大規模評価 (複数モデル一括)
+### 複数モデル一括評価
 
 CSV に列挙した複数モデルを連続で評価するパイプラインです。
 [Prefect](https://www.prefect.io/) による GUI 監視と Slack Webhook 通知に対応しています。
-詳細は [評価の実行 → 大規模評価](infra/gcp/runbook.md#大規模評価-複数モデル一括実行) を参照してください。
+詳細は [評価の実行 → 複数モデル一括実行](infra/gcp/runbook.md#複数モデル一括実行) を参照してください。
 
 ```bash
 # Prefect サーバー起動 (別ターミナル)
 prefect server start
 
 # 実行
-python3 eval/massive/runbook.py [models.csv]
+python3 eval/runbook.py [models.csv]
 ```
 
 ## Citation
