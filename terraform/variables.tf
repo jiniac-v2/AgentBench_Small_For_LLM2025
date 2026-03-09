@@ -41,6 +41,12 @@ variable "git_branch" {
   default     = "main"
 }
 
+variable "instance_count" {
+  description = "Number of VM instances to create"
+  type        = number
+  default     = 1
+}
+
 variable "ssh_user" {
   description = "SSH username (auto-detected by setup-gcp.sh)"
   type        = string

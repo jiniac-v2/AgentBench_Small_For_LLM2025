@@ -3,4 +3,5 @@ region       = "asia-northeast1"
 zone         = "asia-northeast1-a"
 machine_type = "g2-standard-8"
 disk_size_gb = 200
-git_branch   = "main"
+git_branch     = "main"
+instance_count = 1

@@ -33,7 +33,8 @@ resource "google_project_iam_member" "secret_access" {
 # VM Instance
 # ----------------------------------------------------------
 resource "google_compute_instance" "agentbench" {
-  name         = "agentbench-eval"
+  count        = var.instance_count
+  name         = "agentbench-eval-${count.index + 1}"
   machine_type = var.machine_type
   zone         = var.zone
 
@@ -96,12 +97,12 @@ resource "google_compute_firewall" "allow_ssh" {
 # ----------------------------------------------------------
 # Outputs
 # ----------------------------------------------------------
-output "instance_ip" {
-  description = "External IP of the AgentBench VM"
-  value       = google_compute_instance.agentbench.network_interface[0].access_config[0].nat_ip
+output "instance_ips" {
+  description = "External IPs of the AgentBench VMs"
+  value       = { for i, inst in google_compute_instance.agentbench : inst.name => inst.network_interface[0].access_config[0].nat_ip }
 }
 
-output "ssh_command" {
-  description = "SSH command to connect to the VM"
-  value       = "gcloud compute ssh agentbench-eval --zone ${var.zone} --project ${var.project_id}"
+output "ssh_commands" {
+  description = "SSH commands to connect to the VMs"
+  value       = [for inst in google_compute_instance.agentbench : "gcloud compute ssh ${inst.name} --zone ${var.zone} --project ${var.project_id}"]
 }
