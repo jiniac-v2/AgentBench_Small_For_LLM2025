@@ -29,12 +29,12 @@
 
 ## ドキュメント
 
-### ローカル
+### ローカル (WSL on GPU)
 
 | ドキュメント | 内容 |
 |---|---|
-| [環境構築](docs/local/setup.md) | ローカルマシンのセットアップ |
-| [評価の実行](docs/local/runbook.md) | ローカル評価の手順 |
+| [環境構築](docs/local/setup.md) | WSL2 + NVIDIA GPU のセットアップ |
+| [評価の実行](docs/local/runbook.md) | ローカル評価の手順・モデル切替・トラブルシューティング |
 
 ### クラウド (GCP)
 
