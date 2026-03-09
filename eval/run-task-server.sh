@@ -2,11 +2,11 @@
 set -e
 
 # Usage:
-#   bash scripts/eval/run-task-server.sh          # 全タスク起動
-#   bash scripts/eval/run-task-server.sh alf       # ALFWorld だけ
-#   bash scripts/eval/run-task-server.sh db        # DBBench だけ
+#   bash eval/run-task-server.sh          # 全タスク起動
+#   bash eval/run-task-server.sh alf      # ALFWorld だけ
+#   bash eval/run-task-server.sh db       # DBBench だけ
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
 case "${1:-}" in
   alf) CONFIG="configs/start_task_alf.yaml" ;;

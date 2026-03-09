@@ -2,14 +2,15 @@
 set -e
 
 # ============================================================
-# AgentBench VM セットアップ (1/3) — Docker Engine 版
+# AgentBench セットアップ (1/2) — Docker Engine 版
 #
 # Docker Engine, NVIDIA Container Toolkit, Python 依存パッケージ
 #
 # Usage:
-#   sudo bash scripts/setup/setup1.sh
+#   sudo bash infra/gcp/setup1.sh          # GCP
+#   sudo bash infra/wsl/setup1.sh          # WSL (symlink)
 #
-# Docker Desktop を使う場合: setup1_desktop.sh を使ってください
+# Docker Desktop を使う場合: infra/wsl/setup1_desktop.sh を使ってください
 # ============================================================
 
 # Auto-detect APP_DIR from script location
@@ -109,5 +110,5 @@ echo ""
 echo "docker グループ反映のため再ログインしてください。"
 echo "  newgrp docker  または  exit → 再接続"
 echo ""
-echo "次: bash ${APP_DIR}/scripts/setup/setup2.sh"
+echo "次: bash ${APP_DIR}/infra/gcp/setup2.sh"
 echo ""

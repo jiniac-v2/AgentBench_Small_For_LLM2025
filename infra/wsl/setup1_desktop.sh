@@ -9,7 +9,7 @@ set -e
 # Python 依存パッケージのみセットアップします。
 #
 # Usage:
-#   sudo bash scripts/setup/setup1_desktop.sh
+#   sudo bash infra/wsl/setup1_desktop.sh
 #
 # 前提:
 #   - Docker Desktop for Windows がインストール済み
@@ -85,5 +85,5 @@ echo "=========================================="
 echo " setup1_desktop 完了!"
 echo "=========================================="
 echo ""
-echo "次: bash ${APP_DIR}/scripts/setup/setup2.sh"
+echo "次: bash ${APP_DIR}/infra/wsl/setup2.sh"
 echo ""

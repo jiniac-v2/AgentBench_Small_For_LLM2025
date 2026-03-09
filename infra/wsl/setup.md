@@ -105,7 +105,7 @@ cd AgentBench_Small_For_LLM2025
 
 ```bash
 # (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (要 sudo)
-sudo bash scripts/setup/setup1.sh
+sudo bash infra/wsl/setup1.sh
 ```
 
 ```bash
@@ -117,7 +117,7 @@ newgrp docker          # または exit → 再接続
 
 ```bash
 # (1) Python 依存のみ (要 sudo)
-sudo bash scripts/setup/setup1_desktop.sh
+sudo bash infra/wsl/setup1_desktop.sh
 ```
 
 > Docker Desktop 版は docker グループへの追加や再ログインは不要です。
@@ -127,7 +127,7 @@ sudo bash scripts/setup/setup1_desktop.sh
 ```bash
 # (2) ALFWorld データ / .env / Docker イメージ pull
 cd ~/AgentBench_Small_For_LLM2025
-bash scripts/setup/setup2.sh
+bash infra/wsl/setup2.sh
 ```
 
 ---
@@ -228,21 +228,6 @@ WSL 内のファイルシステム (`/home/...`) は Windows のファイルシ�
 # 悪い: Windows マウント (遅い)
 /mnt/c/Users/.../AgentBench_Small_For_LLM2025/
 ```
-
-### systemd
-
-WSL2 は systemd をサポートしていますが、デフォルトで無効の場合があります。
-`setup_systemd.sh` を使いたい場合は、`/etc/wsl.conf` で有効化:
-
-```ini
-# /etc/wsl.conf (WSL 内)
-[boot]
-systemd=true
-```
-
-変更後、PowerShell で `wsl --shutdown` → WSL を再起動。
-
-ただし、ローカル環境では **docker compose で十分** なので systemd は必須ではありません。
 
 ---
 

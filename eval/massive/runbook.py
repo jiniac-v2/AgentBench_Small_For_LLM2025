@@ -23,7 +23,7 @@ Usage:
   prefect server start
 
   # 実行
-  sudo python3 scripts/massive_eval/runbook.py [models.csv]
+  python3 eval/massive/runbook.py [models.csv]
 
   # Prefect UI 確認 (SSH トンネル経由)
   gcloud compute ssh VM_NAME --ssh-flag="-L 4200:localhost:4200"

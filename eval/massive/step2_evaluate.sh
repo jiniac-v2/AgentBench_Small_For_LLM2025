@@ -5,7 +5,7 @@ set -e
 # Step 2: 評価実行 (タスクサーバー + assigner.py)
 #
 # Usage:
-#   bash scripts/massive_eval/step2_evaluate.sh
+#   bash eval/massive/step2_evaluate.sh
 #
 # 処理:
 #   1. 既存の run-task-server.sh でタスクサーバーをバックグラウンド起動
@@ -25,7 +25,7 @@ echo "============================================"
 # ── 1. タスクサーバー起動 ──
 
 echo "[Step2] タスクサーバー起動..."
-bash "${APP_DIR}/scripts/eval/run-task-server.sh" &
+bash "${APP_DIR}/eval/run-task-server.sh" &
 TASK_PID=$!
 
 # タスクサーバーの起動を待つ

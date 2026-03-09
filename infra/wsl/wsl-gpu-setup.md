@@ -196,7 +196,7 @@ Docker Engine / nvidia-container-toolkit のインストールはスキップし
 
 ```bash
 # (1) Python 依存パッケージ (要 sudo)
-sudo bash scripts/setup/setup1_desktop.sh
+sudo bash infra/wsl/setup1_desktop.sh
 ```
 
 > **Docker Engine 版** (`setup1.sh`) との違い:
@@ -208,7 +208,7 @@ sudo bash scripts/setup/setup1_desktop.sh
 ### ALFWorld データと設定ファイル
 
 ```bash
-bash scripts/setup/setup2.sh
+bash infra/wsl/setup2.sh
 ```
 
 > `setup2.sh` は ALFWorld ランタイムデータのダウンロード、`.env` 生成、Docker イメージの pull を行います。
@@ -276,17 +276,14 @@ curl -s http://localhost:8000/v1/models | python3 -m json.tool
 
 ### モデルの切り替え
 
-別のモデルに切り替えるには:
+`.env` の `VLLM_MODEL` を編集して vLLM を再起動:
 
 ```bash
-bash scripts/eval/switch-model-local.sh
-```
+vi .env
+docker compose down && docker compose up -d
 
-または `.env` を編集して:
-
-```bash
-docker compose down
-docker compose up -d
+# agent config のモデル名も更新
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"your-org/your-model\"|" configs/agents/api_agents.yaml
 ```
 
 ---

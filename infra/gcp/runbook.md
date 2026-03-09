@@ -6,21 +6,26 @@
 
 ## Step 1: モデル切替
 
+`.env` を編集してモデル名・HF トークンを設定し、docker compose で vLLM を再起動します。
+
 ```bash
-# switch-model.sh を編集してモデル名・HFトークンを設定
-vim ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
+cd ~/AgentBench_Small_For_LLM2025
+
+# .env を編集
+vi .env
 ```
 
 ```bash
-# ---- ここを編集 ----
-VLLM_MODEL="your-org/your-model"
-HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
-# ---------------------
+VLLM_MODEL=your-org/your-model
+HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxx
 ```
 
 ```bash
-# モデル切替 (.env + config 更新 → サービス再起動)
-sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
+# vLLM 再起動
+docker compose down && docker compose up -d
+
+# agent config のモデル名も更新
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"your-org/your-model\"|" configs/agents/api_agents.yaml
 ```
 
 ---
@@ -30,7 +35,7 @@ sudo bash ~/AgentBench_Small_For_LLM2025/scripts/eval/switch-model.sh
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-bash scripts/eval/run-task-server.sh
+bash eval/run-task-server.sh
 ```
 
 5000 番台のポートに残っているプロセスを自動で停止してからサーバーを起動します。
@@ -70,7 +75,7 @@ ALFWorld / DBBench を個別に動かしたい場合は、`--config` でデバ�
 
 ```bash
 # タスクサーバー (別ターミナル)
-bash scripts/eval/run-task-server.sh alf
+bash eval/run-task-server.sh alf
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
@@ -80,7 +85,7 @@ python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs
 
 ```bash
 # タスクサーバー (別ターミナル)
-bash scripts/eval/run-task-server.sh db
+bash eval/run-task-server.sh db
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
@@ -149,25 +154,21 @@ gcloud compute scp --recurse \
 ## vLLM の状態確認・監視
 
 ```bash
-# サービスの状態
-sudo systemctl status agentbench-vllm
-
-# コンテナの確認
-sudo docker ps | grep vllm
+# コンテナの状態確認
+docker compose ps
 
 # ログの確認
-sudo journalctl -u agentbench-vllm -n 50
+docker compose logs --tail=50 vllm
 
-# ログをリアルタイムで追跡 (直近100行 + ストリーム)
-sudo journalctl -u agentbench-vllm -n 100 -f
+# ログをリアルタイムで追跡
+docker compose logs -f vllm
 ```
 
->NOTE: vLLMはsystemdでサービス化しており，最後にswith-model.shで変更したモデルがデフォルトで立ち上がるようになってます．
-
-### vLLM の手動再起動
+### vLLM の再起動
 
 ```bash
-sudo systemctl restart agentbench-vllm
+cd ~/AgentBench_Small_For_LLM2025
+docker compose down && docker compose up -d
 ```
 
 ---
@@ -189,15 +190,14 @@ alfworld ランタイムデータのシンボリックリンクが未作成、�
 `setup2.sh` を再実行してください (sudo 不要):
 
 ```bash
-bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup2.sh
+bash ~/AgentBench_Small_For_LLM2025/infra/gcp/setup2.sh
 ```
 
 ### vLLM 接続エラー
 
 ```bash
-sudo systemctl status agentbench-vllm
-sudo journalctl -u agentbench-vllm -n 50
-docker ps | grep vllm
+docker compose ps
+docker compose logs --tail=50 vllm
 ```
 
 ---
@@ -228,7 +228,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T.../B.../xxxx
 
 ### CSV の準備
 
-`scripts/massive_eval/models.csv` を作成します。
+`eval/massive/models.csv` を作成します。
 
 ```csv
 No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
@@ -259,7 +259,7 @@ prefect server start
 
 # ターミナル 2: 評価実行
 cd ~/AgentBench_Small_For_LLM2025
-sudo python3 scripts/massive_eval/runbook.py [models.csv]
+python3 eval/massive/runbook.py [models.csv]
 ```
 
 ### Prefect UI で進捗確認
@@ -308,5 +308,5 @@ gcloud compute ssh agentbench-eval \
 Prefect なしで従来通り実行することも可能です:
 
 ```bash
-sudo bash scripts/massive_eval/runbook.sh [models.csv]
+bash eval/massive/runbook.sh [models.csv]
 ```

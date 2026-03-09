@@ -6,28 +6,27 @@
 
 ## Step 1: モデル切替
 
-ローカルでは systemd を使わないため、docker compose 経由で vLLM を再起動します。
+`.env` を編集してモデル名・HF トークンを設定し、docker compose で vLLM を再起動します。
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 
-# switch-model-local.sh を編集してモデル名・HFトークンを設定
-vim scripts/eval/switch-model-local.sh
+# .env を編集
+vi .env
 ```
 
 ```bash
-# ---- ここを編集 ----
-VLLM_MODEL="your-org/your-model"
-HF_TOKEN="hf_xxxxxxxxxxxxx"    # READ権限
-# ---------------------
+VLLM_MODEL=your-org/your-model
+HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxx
 ```
 
 ```bash
-# モデル切替 (.env + config 更新 → vLLM 再起動)
-bash scripts/eval/switch-model-local.sh
-```
+# vLLM 再起動
+docker compose down && docker compose up -d
 
-> **手動でやる場合**: `.env` の `VLLM_MODEL` と `HUGGING_FACE_HUB_TOKEN` を直接編集して `docker compose down && docker compose up -d` でも OK。
+# agent config のモデル名も更新
+sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"your-org/your-model\"|" configs/agents/api_agents.yaml
+```
 
 ---
 
@@ -60,7 +59,7 @@ curl -s http://localhost:8000/health
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-bash scripts/eval/run-task-server.sh
+bash eval/run-task-server.sh
 ```
 
 5000 番台のポートに残っているプロセスを自動で停止してからサーバーを起動します。
@@ -100,7 +99,7 @@ ALFWorld / DBBench を個別に動かしたい場合は、`--config` でデバ�
 
 ```bash
 # タスクサーバー (別ターミナル)
-bash scripts/eval/run-task-server.sh alf
+bash eval/run-task-server.sh alf
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs/execution.log
@@ -110,7 +109,7 @@ python3 -m src.assigner -c configs/assignments/debug_alf.yaml 2>&1 | tee outputs
 
 ```bash
 # タスクサーバー (別ターミナル)
-bash scripts/eval/run-task-server.sh db
+bash eval/run-task-server.sh db
 
 # アサイナー
 python3 -m src.assigner -c configs/assignments/debug_db.yaml 2>&1 | tee outputs/execution.log
@@ -195,7 +194,7 @@ alfworld ランタイムデータのシンボリックリンクが未作成、�
 `setup2.sh` を再実行してください (sudo 不要):
 
 ```bash
-bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup2.sh
+bash ~/AgentBench_Small_For_LLM2025/infra/wsl/setup2.sh
 ```
 
 ### vLLM 接続エラー
@@ -231,7 +230,7 @@ WSL2 のデフォルトメモリ上限に引っかかっている可能性があ
 ## 大規模評価 (複数モデル一括実行)
 
 ローカル環境でも大規模評価パイプラインを利用できます。
-クラウド版と同じ仕組みですが、vLLM の再起動に systemd ではなく docker compose を使います。
+クラウド版と同じ仕組みです。docker compose で vLLM を管理します。
 
 ### セットアップ
 
@@ -241,7 +240,7 @@ pip install "prefect>=3.0,<4.0"
 
 ### CSV の準備
 
-[クラウド版と同じフォーマット](../cloud/runbook.md#csv-の準備) で `scripts/massive_eval/models.csv` を作成してください。
+[クラウド版と同じフォーマット](../gcp/runbook.md#csv-の準備) で `eval/massive/models.csv` を作成してください。
 
 ### 実行
 
@@ -251,7 +250,7 @@ prefect server start
 
 # ターミナル 2: 評価実行
 cd ~/AgentBench_Small_For_LLM2025
-sudo python3 scripts/massive_eval/runbook.py [models.csv]
+python3 eval/massive/runbook.py [models.csv]
 ```
 
 ### Prefect UI で進捗確認

@@ -7,7 +7,7 @@ set -e
 # ALFWorld データ, .env / agent config, Docker イメージ pull
 #
 # Usage:
-#   bash scripts/setup/setup2.sh
+#   bash infra/gcp/setup2.sh
 # ============================================================
 
 # ---- 設定 ----
@@ -97,5 +97,5 @@ echo "=========================================="
 echo " setup2 完了!"
 echo "=========================================="
 echo ""
-echo "次: sudo bash ${APP_DIR}/scripts/setup/setup_systemd.sh"
+echo "次: cd ${APP_DIR} && docker compose up -d"
 echo ""

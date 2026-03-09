@@ -1,0 +1,1 @@
+../gcp/setup1.sh

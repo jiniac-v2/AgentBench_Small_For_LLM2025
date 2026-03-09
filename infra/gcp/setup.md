@@ -155,7 +155,7 @@ git_branch   = ""              # VM にクローンするブランチ(現在:kit
 
 ```bash
 # VM 作成 + 構築完了待ち + リポジトリ clone
-bash scripts/infra/setup-gcp.sh
+bash infra/gcp/setup-gcp.sh
 ```
 
 `setup-gcp.sh` は以下を実行します:
@@ -186,7 +186,7 @@ VM 上で以下を実行します。**方法 A (既存 VM) でも方法 B (Terra
 cd ~/AgentBench_Small_For_LLM2025
 
 # (1) Docker / NVIDIA / Python 依存 の用意(要 sudo)
-sudo bash scripts/setup/setup1.sh
+sudo bash infra/gcp/setup1.sh
 
 # docker グループ反映のため再ログイン
 exit
@@ -196,24 +196,26 @@ newgrp docker
 
 # (2) ALFWorld データ / .env / Docker イメージ pull の用意
 cd ~/AgentBench_Small_For_LLM2025
-bash scripts/setup/setup2.sh
+bash infra/gcp/setup2.sh
 ```
 
-## Step 9: systemd セットアップ
+## Step 9: vLLM 起動
 
-VM 再起動時に vLLM を自動起動させます。
+docker compose で vLLM を起動します。
 
 ```bash
-sudo bash scripts/setup/setup_systemd.sh
+cd ~/AgentBench_Small_For_LLM2025
+docker compose up -d
 ```
 
 確認:
 
 ```bash
-systemctl status agentbench-vllm
+docker compose ps
+docker compose logs -f vllm
 ```
 
-> vLLMは立ち上げに時間がかかるので，マシン再起動後しばらく時間を置いてから評価を走らせましょう．
+> vLLM は立ち上げに時間がかかるので，docker compose logs で `Uvicorn running on` が表示されるまで待ってください．
 
 ## 次のステップ
 
@@ -373,7 +375,7 @@ gcloud compute instances start agentbench-eval \
 2. `agentbench-eval` のチェックボックスをオン
 3. ページ上部の **「起動」** ボタンをクリック
 
-> 起動後、systemd が自動でインフラサービス (vLLM, Controller, Worker) を開始します。startup.sh はプロビジョニング済みの場合何もしません。
+> 起動後、`cd ~/AgentBench_Small_For_LLM2025 && docker compose up -d` で vLLM を再起動してください。startup.sh はプロビジョニング済みの場合何もしません。
 > **注意**: 停止→起動で外部 IP が変わるため、VSCode Remote SSH を使う場合は `gcloud compute config-ssh` を再実行してください。
 
 ### VM の削除

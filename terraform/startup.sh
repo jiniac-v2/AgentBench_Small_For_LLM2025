@@ -60,4 +60,4 @@ fi
 # ============================================================
 touch "$PROVISION_MARKER"
 log "=== Startup script COMPLETE ==="
-log "Next: SSH in and run  sudo bash ~/AgentBench_Small_For_LLM2025/scripts/setup/setup1.sh"
+log "Next: SSH in and run  sudo bash ~/AgentBench_Small_For_LLM2025/infra/gcp/setup1.sh"

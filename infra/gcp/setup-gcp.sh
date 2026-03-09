@@ -5,7 +5,7 @@ set -e
 # GCP VM セットアップスクリプト (ローカルから実行)
 #
 # Usage:
-#   bash scripts/infra/setup-gcp.sh
+#   bash infra/gcp/setup-gcp.sh
 #
 # Prerequisites:
 #   - gcloud CLI インストール・認証済み

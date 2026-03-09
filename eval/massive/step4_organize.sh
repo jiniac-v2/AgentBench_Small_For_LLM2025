@@ -5,7 +5,7 @@ set -e
 # Step 4: 評価コンテンツの整理
 #
 # Usage:
-#   bash scripts/massive_eval/step4_organize.sh <omni_account> <output_dir> [results_base]
+#   bash eval/massive/step4_organize.sh <omni_account> <output_dir> [results_base]
 #
 # 処理:
 #   1. outputs ディレクトリ (analysis 結果含む) を

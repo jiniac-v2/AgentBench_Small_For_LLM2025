@@ -5,7 +5,7 @@ set -e
 # Step 3: analysis.py 実行
 #
 # Usage:
-#   bash scripts/massive_eval/step3_analysis.sh <output_dir>
+#   bash eval/massive/step3_analysis.sh <output_dir>
 #
 # 処理:
 #   1. 指定された output ディレクトリに対して analysis.py を実行
