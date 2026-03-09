@@ -148,6 +148,43 @@ GPU の情報が表示されれば OK:
 
 ---
 
+## Step 3.5 (任意): CUDA Toolkit のインストール
+
+> **AgentBench の評価実行だけなら不要です。** vLLM は Docker コンテナ内に独自の CUDA ランタイムを持つため、ホスト側の CUDA Toolkit はコンテナ動作に影響しません。
+> ただし、WSL 内で直接 PyTorch を動かす・CUDA コードをコンパイルするなどの用途がある場合はインストールしてください。
+
+NVIDIA 公式の **WSL-Ubuntu 専用リポジトリ** からインストールします。
+
+```bash
+wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda-toolkit-12-6
+```
+
+> **バージョンについて**: `cuda-toolkit-12-6` の部分は使いたいバージョンに合わせて変更してください (例: `cuda-toolkit-13-2`)。
+> 利用可能なバージョンは `apt-cache search cuda-toolkit` で確認できます。
+
+インストール後、PATH を通します:
+
+```bash
+echo 'export PATH="/usr/local/cuda/bin:$PATH"' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+動作確認:
+
+```bash
+nvcc --version
+```
+
+> **注意**: `cuda` や `cuda-drivers` メタパッケージは **インストールしないでください**。
+> これらは Linux 用 GPU ドライバを含むため、Windows 側のドライバと競合します。
+> 必ず `cuda-toolkit-XX-X` を指定してください。
+
+---
+
 ## Step 4: Docker Desktop のインストールと設定
 
 ### 4-1. Docker Desktop のインストール
