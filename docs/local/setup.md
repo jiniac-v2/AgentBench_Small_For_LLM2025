@@ -2,6 +2,9 @@
 
 Windows + WSL2 + NVIDIA GPU でのセットアップ手順です。
 
+> **Docker Desktop を使う場合**: [WSL2 + GPU 環境構築ガイド (Docker Desktop)](wsl-gpu-setup.md) を参照してください。
+> 以下は Docker Engine を直接 WSL 内にインストールするパターンです。
+
 ## 前提条件
 
 ### Windows 側
