@@ -73,15 +73,26 @@ kill $TASK_PID 2>/dev/null || true
 wait $TASK_PID 2>/dev/null || true
 
 # 残存プロセスの掃除 (run-task-server.sh が exec するので念のため)
+# lsof が使えない環境ではプロセス名ベースで kill
 PIDS=$(lsof -ti :5000-5010 2>/dev/null || true)
+if [ -z "$PIDS" ]; then
+    for p in $(seq 5000 5010); do
+        PIDS="$PIDS $(fuser ${p}/tcp 2>/dev/null || true)"
+    done
+    PIDS=$(echo "$PIDS" | xargs)
+fi
+if [ -z "$PIDS" ]; then
+    PIDS=$(pgrep -f 'src\.server\.task_controller|src\.server\.task_worker|src\.start_task' 2>/dev/null || true)
+fi
 if [ -n "$PIDS" ]; then
     echo "[Step2] 残存プロセスを停止: $PIDS"
     echo "$PIDS" | xargs kill 2>/dev/null || true
     sleep 1
-    PIDS=$(lsof -ti :5000-5010 2>/dev/null || true)
-    if [ -n "$PIDS" ]; then
-        echo "$PIDS" | xargs kill -9 2>/dev/null || true
-    fi
+    for pid in $PIDS; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
 fi
 
 if [ $assigner_exit -ne 0 ]; then
