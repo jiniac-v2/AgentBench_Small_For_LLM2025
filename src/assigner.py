@@ -90,8 +90,23 @@ class Assigner:
                 self.remaining_tasks[agent][task] = []
             if task not in self.tasks:
                 print(ColorMessage.green(f"creating {task} client..."))
-                self.tasks[task] = self.config.definition.task[task].create()
-                self.task_indices[task] = self.tasks[task].get_indices()
+                task_factory = self.config.definition.task[task]
+                print(ColorMessage.cyan(
+                    f"[DEBUG] Task '{task}' factory: module={task_factory.module}, "
+                    f"params={json.dumps({k: str(v) for k, v in task_factory.parameters.items()}, ensure_ascii=False)}"
+                ))
+                self.tasks[task] = task_factory.create()
+                print(ColorMessage.cyan(f"[DEBUG] Task '{task}' client created: {self.tasks[task]}"))
+                try:
+                    self.task_indices[task] = self.tasks[task].get_indices()
+                    print(ColorMessage.cyan(
+                        f"[DEBUG] Task '{task}' get_indices() → {len(self.task_indices[task])} samples"
+                    ))
+                except Exception as e:
+                    print(ColorMessage.red(
+                        f"[DEBUG] Task '{task}' get_indices() FAILED: {e}"
+                    ))
+                    raise
             self.remaining_tasks[agent][task] = self.task_indices[task].copy()
             if not os.path.exists(runs_file):
                 continue
@@ -153,7 +168,13 @@ class Assigner:
         # Create agents
 
         for agent in self.remaining_tasks:
-            self.agents[agent] = self.config.definition.agent[agent].create()
+            agent_factory = self.config.definition.agent[agent]
+            print(ColorMessage.cyan(
+                f"[DEBUG] Agent '{agent}' factory: module={agent_factory.module}, "
+                f"params={json.dumps({k: str(v) for k, v in agent_factory.parameters.items()}, ensure_ascii=False)}"
+            ))
+            self.agents[agent] = agent_factory.create()
+            print(ColorMessage.cyan(f"[DEBUG] Agent '{agent}' created: {self.agents[agent]}"))
 
     def get_output_dir(self, agent: str, task: str) -> str:
         return os.path.join(self.config.output, agent, task)
@@ -178,7 +199,15 @@ class Assigner:
 
             with self.assignment_lock:
                 for task in self.tasks:
-                    self.free_worker.task[task] = self.tasks[task].get_concurrency()
+                    conc = self.tasks[task].get_concurrency()
+                    self.free_worker.task[task] = conc
+                    print(ColorMessage.cyan(
+                        f"[DEBUG] task '{task}' get_concurrency()={conc}"
+                    ))
+                for agent in self.agents:
+                    print(ColorMessage.cyan(
+                        f"[DEBUG] agent '{agent}' free_worker={self.free_worker.agent.get(agent, '?')}"
+                    ))
                 print("Running Count: {}".format(self.running_count))
 
             # Step 1. init edges: SRC -> agent -> task -> DST
@@ -196,6 +225,9 @@ class Assigner:
                         edges[(agent_node_index[agent], task_node_index[task])] = len(
                             self.remaining_tasks[agent][task]
                         )
+            print(ColorMessage.cyan(
+                f"[DEBUG] remaining_samples={tot_remaining_samples}, edges={edges}"
+            ))
             if tot_remaining_samples == 0:
                 if self.running_count == 0:
                     break
@@ -208,7 +240,16 @@ class Assigner:
             graph = Graph(node_count=len(node_list), edges=edges)
             max_flow = MaxFlow(graph, src=0, dst=1)
 
+            print(ColorMessage.cyan(
+                f"[DEBUG] max_flow={max_flow.max_flow}"
+            ))
             if max_flow.max_flow == 0:
+                print(ColorMessage.yellow(
+                    "[DEBUG] max_flow=0 → ワーカー不足で割り当て不可。"
+                    "タスクサーバーのワーカーが ALIVE か確認してください。"
+                    f" agent_cap={dict((a, self.free_worker.agent[a]) for a in self.agents)},"
+                    f" task_cap={dict((t, self.free_worker.task[t]) for t in self.tasks)}"
+                ))
                 time.sleep(interval / 2 + random.random() * interval)
                 continue
 
@@ -393,8 +434,14 @@ class Assigner:
     ):
         def worker_thread():
             nonlocal agent, task, index, finish_callback
-
+            print(ColorMessage.cyan(
+                f"[DEBUG] worker_thread 開始: {agent}/{task}#{index}"
+            ))
             result = self.tasks[task].run_sample(index, self.agents[agent])
+            print(ColorMessage.cyan(
+                f"[DEBUG] worker_thread 完了: {agent}/{task}#{index} "
+                f"error={result.error}, output_type={type(result.output).__name__}"
+            ))
 
             if finish_callback:
                 finish_callback(agent, task, index, result)
