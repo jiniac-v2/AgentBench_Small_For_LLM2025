@@ -404,6 +404,38 @@ class Assigner:
         threading.Thread(target=worker_thread).start()
 
 
+def _auto_detect_vllm_model(vllm_url: str = "http://localhost:8000") -> str:
+    """vLLM の /v1/models からモデル名を自動取得する"""
+    import urllib.request
+    try:
+        req = urllib.request.Request(f"{vllm_url}/v1/models", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            model_id = data["data"][0]["id"]
+            print(ColorMessage.green(f"Auto-detected VLLM_MODEL: {model_id}"))
+            return model_id
+    except Exception as e:
+        print(ColorMessage.yellow(f"Warning: vLLM モデル自動検出に失敗: {e}"))
+        return ""
+
+
+def _load_env_file(env_path: str = ".env"):
+    """.env ファイルから環境変数を読み込む（未設定の変数のみ）"""
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip()
+            if key and key not in os.environ:
+                os.environ[key] = val
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -415,6 +447,21 @@ if __name__ == "__main__":
         "--auto-retry", "-r", action="store_true", dest="retry"
     )
     args = parser.parse_args()
+
+    # .env を読み込み（未設定の環境変数のみ）
+    _load_env_file()
+
+    # VLLM_MODEL が未設定なら vLLM サーバーから自動取得
+    if not os.environ.get("VLLM_MODEL"):
+        detected = _auto_detect_vllm_model()
+        if detected:
+            os.environ["VLLM_MODEL"] = detected
+        else:
+            print(ColorMessage.red(
+                "ERROR: VLLM_MODEL が未設定で、vLLM サーバーからも取得できませんでした。\n"
+                "  export VLLM_MODEL=<model_name> を実行するか、.env に設定してください。"
+            ))
+            sys.exit(1)
 
     loader = ConfigLoader()
     config_ = loader.load_from(args.config)
