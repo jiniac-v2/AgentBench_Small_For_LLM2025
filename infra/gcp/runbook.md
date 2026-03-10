@@ -79,7 +79,18 @@ curl -s http://localhost:8000/health
 
 ---
 
-## Step 4: Prefect サーバー起動 (ターミナル 1)
+## Step 4: タスクサーバー起動 (ターミナル 2)
+
+`Ctrl+Shift+`` で新しいターミナルを開きます:
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+bash eval/run-task-server.sh
+```
+
+---
+
+## Step 5: Prefect サーバー起動 (ターミナル 1)
 
 VSCode のターミナルで実行します。
 
@@ -91,15 +102,6 @@ prefect server start
 `Started server at http://0.0.0.0:4200` が表示されたら OK。
 
 ---
-
-## Step 5: タスクサーバー起動 (ターミナル 2)
-
-`Ctrl+Shift+`` で新しいターミナルを開きます:
-
-```bash
-cd ~/AgentBench_Small_For_LLM2025
-bash eval/run-task-server.sh
-```
 
 ---
 
