@@ -18,8 +18,8 @@
 ├──────────────────────────────────────────────────┤
 │  AgentBench (Native Python)                      │
 │    ├── Controller                 Port: 5000     │
-│    ├── Workers (ALFWorld×5)       Port: 5001-5006│
-│    ├── Worker  (DBBench×1)                       │
+│    ├── Workers (DBBench×2)        Port: 5001-5002│
+│    ├── Workers (ALFWorld×5)       Port: 5003-5007│
 │    └── Assigner (Evaluation)                     │
 ├──────────────────────────────────────────────────┤
 │  MySQL (Docker, DBBench用)        Port: 動的     │
