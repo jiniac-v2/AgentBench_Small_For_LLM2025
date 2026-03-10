@@ -17,6 +17,9 @@ analysis
 .env
 .venv/
 
+# Evaluation CSV (contains tokens / per-environment data)
+eval/models.csv
+
 # Terraform
 terraform/.terraform/
 terraform/*.tfstate
