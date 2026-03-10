@@ -290,17 +290,19 @@ def run_evaluation(csv_file: str | None = None) -> None:
     if not Path(csv_path).exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
-    # タスクサーバーの起動チェック
+    # タスクサーバーの起動チェック (接続できれば OK、404 等は問わない)
     logger.info("タスクサーバーの起動を確認中...")
     try:
         urllib.request.urlopen("http://localhost:5000/api", timeout=3)
-        logger.info("タスクサーバー: OK")
-    except Exception:
+    except urllib.error.HTTPError:
+        pass  # 接続はできている (404 等)
+    except (urllib.error.URLError, OSError):
         raise RuntimeError(
             "タスクサーバー (port 5000) が起動していません。\n"
             "  別ターミナルで以下を実行してください:\n"
             "    bash eval/run-task-server.sh"
         )
+    logger.info("タスクサーバー: OK")
 
     # CSV 読み込み (DictReader で列名ベース)
     enc = detect_encoding(csv_path)
