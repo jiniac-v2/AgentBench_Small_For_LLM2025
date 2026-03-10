@@ -43,24 +43,48 @@
 | [環境構築](infra/gcp/setup.md) | GCP VM の構築・接続・管理 |
 | [評価の実行](infra/gcp/runbook.md) | クラウド評価の手順・監視・トラブルシューティング・大規模評価 |
 
-### 複数モデル一括評価
-
-CSV に列挙した複数モデルを連続で評価するパイプラインです。
-[Prefect](https://www.prefect.io/) による GUI 監視と Slack Webhook 通知に対応しています。
-詳細は [評価の実行 → 複数モデル一括実行](infra/gcp/runbook.md#複数モデル一括実行) を参照してください。
+### 評価の実行
 
 **前提:** 環境構築 ([WSL](infra/wsl/setup.md) or [GCP](infra/gcp/setup.md)) が完了していること
 
+#### 1モデルだけ試す
+
+`.env` にモデルを設定 → vLLM 起動 → 評価 → 結果確認、の流れです。
+
 ```bash
-# セットアップ (初回のみ)
-python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-cp eval/models.csv.example eval/models.csv  # 作成後、model_path / hf_token / PreCheck 等を記入
+source .venv/bin/activate
+
+# vLLM 起動
+docker compose down && docker compose up -d
+
+# 評価
+bash eval/run-task-server.sh            # 別ターミナルで実行
+python3 -m src.assigner -c configs/assignments/default.yaml
+
+# 結果集計
+python3 -m src.analysis -o outputs -s analysis
+cat analysis/overall_score.csv
+```
+
+詳細: [WSL 版](infra/wsl/runbook.md) / [GCP 版](infra/gcp/runbook.md)
+
+#### 複数モデル一括評価
+
+CSV に列挙したモデルを連続で評価します。[Prefect](https://www.prefect.io/) UI で進捗監視、Slack 通知に対応。
+
+```bash
+source .venv/bin/activate
+
+# CSV を準備 (初回のみ)
+cp eval/models.csv.example eval/models.csv
+# eval/models.csv を編集: model_path, hf_token, PreCheck 等を記入
 
 # 実行
-source .venv/bin/activate
-prefect server start &                      # Prefect UI: http://localhost:4200
+prefect server start &                  # Prefect UI: http://localhost:4200
 python3 eval/runbook.py eval/models.csv
 ```
+
+詳細: [WSL 版](infra/wsl/runbook.md#複数モデル一括実行) / [GCP 版](infra/gcp/runbook.md#複数モデル一括実行)
 
 ## Citation
 
