@@ -217,8 +217,8 @@ def step3_analysis(output_dir: str) -> None:
 
 
 @task(name="Step4: 結果整理", log_prints=True)
-def step4_organize(prefix: str, output_dir: str, results_base: str) -> None:
-    """結果を整理する. prefix は '{OmniID}_{OmniAccount}_' 形式."""
+def step4_organize(prefix: str, output_dir: str) -> None:
+    """outputs/{TIMESTAMP}/ を outputs/{prefix}{TIMESTAMP}/ にリネームする."""
     logger = get_run_logger()
     logger.info(f"結果整理: {prefix}")
     result = subprocess.run(
@@ -227,7 +227,6 @@ def step4_organize(prefix: str, output_dir: str, results_base: str) -> None:
             str(SCRIPT_DIR / "step4_organize.sh"),
             prefix,
             output_dir,
-            results_base,
         ],
     )
     if result.returncode != 0:
@@ -246,12 +245,11 @@ def evaluate_model(
     model_path: str,
     hf_token: str,
     prefix: str,
-    results_base: str,
 ) -> tuple[str, str, str]:
     """1モデルの評価パイプライン (Step1〜4).
 
     Args:
-        prefix: 結果ディレクトリ名 ('{OmniID}_{OmniAccount}_' 形式)
+        prefix: '{OmniID}_{OmniAccount}_' 形式のプレフィックス
     """
     # Step 1
     step1_start_vllm(model_path, hf_token)
@@ -265,11 +263,13 @@ def evaluate_model(
         raise RuntimeError("出力ディレクトリが見つかりません")
     step3_analysis(output_dir)
 
-    # Step 4
-    step4_organize(prefix, output_dir, results_base)
+    # スコア取得 (リネーム前にやる)
+    scores = extract_scores(output_dir)
 
-    # スコア取得
-    return extract_scores(output_dir)
+    # Step 4: outputs/{TIMESTAMP}/ → outputs/{prefix}{TIMESTAMP}/
+    step4_organize(prefix, output_dir)
+
+    return scores
 
 
 # ── メインフロー ────────────────────────────────────
@@ -281,8 +281,6 @@ def run_evaluation(csv_file: str | None = None) -> None:
     logger = get_run_logger()
 
     csv_path = csv_file or str(SCRIPT_DIR / "models.csv")
-    results_base = str(APP_DIR / "eval_results")
-    os.makedirs(results_base, exist_ok=True)
 
     # Slack Webhook URL (.env から取得)
     webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
@@ -368,7 +366,6 @@ def run_evaluation(csv_file: str | None = None) -> None:
                 model_path=model_path,
                 hf_token=hf_token,
                 prefix=prefix,
-                results_base=results_base,
             )
 
             duration = format_duration(int(time.time() - pipeline_start))
@@ -438,7 +435,7 @@ def run_evaluation(csv_file: str | None = None) -> None:
         webhook_url,
         title="Massive Evaluation 完了",
         status=summary,
-        fields={"CSV": Path(csv_path).name, "Results": results_base},
+        fields={"CSV": Path(csv_path).name, "Results": str(APP_DIR / "outputs")},
         color="#36a64f" if error_count == 0 else "#ff9900",
     )
 

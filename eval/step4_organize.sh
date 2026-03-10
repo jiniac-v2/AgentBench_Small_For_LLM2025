@@ -5,23 +5,22 @@ set -e
 # Step 4: 評価コンテンツの整理
 #
 # Usage:
-#   bash eval/step4_organize.sh <omni_account> <output_dir> [results_base]
+#   bash eval/step4_organize.sh <prefix> <output_dir>
 #
 # 処理:
-#   1. outputs ディレクトリ (analysis 結果含む) を
-#      {results_base}/{omni_account}/ にコピー
+#   outputs/{TIMESTAMP}/ ディレクトリ名に {prefix} を付与する
+#   例: outputs/2025-03-10-12-34-56/
+#     → outputs/{OmniID}_{OmniAccount}_2025-03-10-12-34-56/
 #
 # Exit code:
 #   0 = 整理成功, 1 = 失敗
 # ============================================================
 
-OMNI_ACCOUNT="$1"
+PREFIX="$1"
 OUTPUT_DIR="$2"
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RESULTS_BASE="${3:-${APP_DIR}/eval_results}"
 
-if [ -z "$OMNI_ACCOUNT" ] || [ -z "$OUTPUT_DIR" ]; then
-    echo "ERROR: Usage: $0 <omni_account> <output_dir> [results_base]"
+if [ -z "$PREFIX" ] || [ -z "$OUTPUT_DIR" ]; then
+    echo "ERROR: Usage: $0 <prefix> <output_dir>"
     exit 1
 fi
 
@@ -30,7 +29,10 @@ if [ ! -d "$OUTPUT_DIR" ]; then
     exit 1
 fi
 
-DEST="${RESULTS_BASE}/${OMNI_ACCOUNT}"
+# ディレクトリ名にプレフィックスを付与してリネーム
+PARENT_DIR="$(dirname "$OUTPUT_DIR")"
+BASE_NAME="$(basename "$OUTPUT_DIR")"
+DEST="${PARENT_DIR}/${PREFIX}${BASE_NAME}"
 
 echo "============================================"
 echo " [Step4] 評価コンテンツの整理"
@@ -38,7 +40,11 @@ echo " From: ${OUTPUT_DIR}"
 echo " To:   ${DEST}"
 echo "============================================"
 
-mkdir -p "$RESULTS_BASE"
+# 既にプレフィックス付きなら何もしない
+if [ "$OUTPUT_DIR" = "$DEST" ]; then
+    echo "[Step4] 既にプレフィックス付きです。スキップ。"
+    exit 0
+fi
 
 # 既存があれば削除して上書き
 if [ -d "$DEST" ]; then
@@ -46,8 +52,8 @@ if [ -d "$DEST" ]; then
     rm -rf "$DEST"
 fi
 
-cp -r "$OUTPUT_DIR" "$DEST"
+mv "$OUTPUT_DIR" "$DEST"
 
-echo "[Step4] 保存完了: ${DEST}"
+echo "[Step4] リネーム完了: ${DEST}"
 ls -la "$DEST"
 exit 0

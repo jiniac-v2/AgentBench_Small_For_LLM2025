@@ -46,7 +46,7 @@ No,machine,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Mod
 | `DB_Bench` | DBBench スコア | **自動** |
 | `ALFWorld` | ALFWorld スコア | **自動** |
 
-結果ディレクトリは `eval_results/{OmniID}_{OmniAccount}_/` に保存されます。
+評価結果は `outputs/{OmniID}_{OmniAccount}_{TIMESTAMP}/` に保存されます。
 
 ---
 
@@ -108,7 +108,7 @@ bash eval/runbook.sh eval/models.csv
 1. **vLLM モデル切替** - docker compose 再起動、推論キャッシュ削除、`.env` / `api_agents.yaml` 更新
 2. **評価実行** - `python3 eval/run_evaluate.py` → `src.assigner` (全タスク実行)
 3. **結果集計** - `python3 -m src.analysis` でスコア算出
-4. **結果整理** - `eval_results/{OmniID}_{OmniAccount}_/` にコピー
+4. **結果整理** - `outputs/{TIMESTAMP}/` を `outputs/{OmniID}_{OmniAccount}_{TIMESTAMP}/` にリネーム
 5. **CSV 更新** - `Valid_Status`, `Valid_Time`, `Score`, `DB_Bench`, `ALFWorld` を自動記入
 
 制限時間は **1モデルあたり2時間** です。超過すると `Valid_TimeOut` が記録されます。
@@ -202,7 +202,10 @@ rm -rf outputs/*
 ## Step 5: 結果確認
 
 ```bash
-ls ~/AgentBench_Small_For_LLM2025/eval_results/
+# プレフィックス付きディレクトリが outputs/ 配下にある
+ls ~/AgentBench_Small_For_LLM2025/outputs/
+
+# CSV にスコアが自動記入されている
 cat eval/models.csv
 ```
 
@@ -210,11 +213,11 @@ cat eval/models.csv
 
 ```bash
 gcloud compute scp --recurse \
-  agentbench-eval:~/AgentBench_Small_For_LLM2025/eval_results/ ./eval_results/ \
+  agentbench-eval:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
-> VSCode の方は eval_results 配下のデータを DL でいいです
+> VSCode の方は outputs 配下のデータを DL でいいです
 
 ---
 

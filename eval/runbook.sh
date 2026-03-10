@@ -42,7 +42,6 @@ APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 [ -f "${APP_DIR}/.venv/bin/activate" ] && source "${APP_DIR}/.venv/bin/activate"
 
 CSV_FILE="${1:-${SCRIPT_DIR}/models.csv}"
-RESULTS_BASE="${APP_DIR}/eval_results"
 
 # 1モデルあたりの制限時間 (2時間 = 7200秒)
 PIPELINE_TIMEOUT_SEC=7200
@@ -53,8 +52,6 @@ if [ ! -f "$CSV_FILE" ]; then
     echo "ERROR: CSV file not found: $CSV_FILE"
     exit 1
 fi
-
-mkdir -p "$RESULTS_BASE"
 
 # ── 前提条件チェック ─────────────────────────────
 
@@ -128,7 +125,7 @@ echo ""
 echo "============================================"
 echo " Evaluation Runbook"
 echo " CSV:     ${CSV_FILE}"
-echo " Results: ${RESULTS_BASE}"
+echo " Output:  ${APP_DIR}/outputs/"
 echo " Timeout: ${PIPELINE_TIMEOUT_SEC}s (per model)"
 echo "============================================"
 echo ""
@@ -188,7 +185,7 @@ while IFS=',' read -r no machine omni_id omni_account model_path hf_token \
     timeout --kill-after=60 "${PIPELINE_TIMEOUT_SEC}" bash -c '
         set -e
         SCRIPT_DIR="$1"; APP_DIR="$2"; model_path="$3"; hf_token="$4"
-        latest_output_file="$5"; prefix="$6"; step1_script="$7"; results_base="$8"
+        latest_output_file="$5"; step1_script="$6"
 
         # 1. vLLM モデル切替 (停止 → キャッシュ削除 → .env更新 → 起動)
         bash "$step1_script" "$model_path" "$hf_token"
@@ -205,12 +202,9 @@ while IFS=',' read -r no machine omni_id omni_account model_path hf_token \
         fi
         bash "${SCRIPT_DIR}/step3_analysis.sh" "$latest_output"
 
-        # 4. 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
-        bash "${SCRIPT_DIR}/step4_organize.sh" "$prefix" "$latest_output" "$results_base"
-
         # latest_output パスを親に伝える
         echo "$latest_output" > "$latest_output_file"
-    ' _ "$SCRIPT_DIR" "$APP_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$STEP1_SCRIPT" "$RESULTS_BASE"
+    ' _ "$SCRIPT_DIR" "$APP_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$STEP1_SCRIPT"
 
     pipeline_exit=$?
     set -e
@@ -243,10 +237,14 @@ while IFS=',' read -r no machine omni_id omni_account model_path hf_token \
         rm -f "/tmp/latest_output_$$"
     fi
 
+    # スコア抽出 (リネーム前にやる)
     scores_csv="$(extract_scores "$latest_output")"
     IFS=',' read -r score_val db_val alf_val <<< "$scores_csv"
 
     update_csv_fields "$csv_line_num" "Finish" "$duration" "$score_val" "$db_val" "$alf_val"
+
+    # 4. 結果整理: outputs/{TIMESTAMP}/ → outputs/{ID}_{Account}_{TIMESTAMP}/
+    bash "${SCRIPT_DIR}/step4_organize.sh" "$prefix" "$latest_output"
 
     echo ""
     echo "[OK] ${label}: Score=${score_val} DB=${db_val} ALF=${alf_val} Time=${duration}"
@@ -263,6 +261,6 @@ echo " 成功:     ${finish_count}"
 echo " 失敗:     ${error_count}"
 echo " スキップ: ${skip_count}"
 echo ""
-echo " 結果: ${RESULTS_BASE}/"
+echo " 結果: ${APP_DIR}/outputs/"
 echo " CSV:  ${CSV_FILE}"
 echo "============================================"
