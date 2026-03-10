@@ -58,12 +58,13 @@ if [ "$task_ready" = false ]; then
     echo "[Step2] WARNING: タスクサーバーの応答を確認できませんが続行します"
 fi
 
-# ── 2. assigner.py 実行 ──
+# ── 2. run_evaluate.py 経由で assigner.py 実行 ──
+#    (前提条件チェック → VLLM_MODEL 解決 → ${VLLM_MODEL} 置換 → src.assigner 呼び出し)
 
-echo "[Step2] assigner.py 実行開始..."
+echo "[Step2] run_evaluate.py 実行開始..."
 cd "${APP_DIR}"
 assigner_exit=0
-python3 -m src.assigner -c configs/assignments/default.yaml -r || assigner_exit=$?
+python3 "${APP_DIR}/eval/run_evaluate.py" -c configs/assignments/default.yaml -r || assigner_exit=$?
 
 # ── 3. タスクサーバー停止 ──
 
