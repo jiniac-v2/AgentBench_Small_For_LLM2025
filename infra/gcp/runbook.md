@@ -14,9 +14,21 @@
 
 評価するモデルを CSV に記載します。→ [CSV スキーマの詳細](../../eval/README.md#csv-スキーマ)
 
+### 方法 A: VM 上で直接編集
+
 ```bash
 cp eval/models.csv.example eval/models.csv
 vi eval/models.csv
+```
+
+### 方法 B: ローカルから転送
+
+ローカルで CSV を用意して VM に転送します。
+
+```bash
+# ローカルで実行
+gcloud compute scp eval/models.csv VM_NAME:~/AgentBench_Small_For_LLM2025/eval/models.csv \
+  --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
 ---
@@ -59,7 +71,15 @@ cd ~/AgentBench_Small_For_LLM2025
 bash eval/run-task-server.sh
 ```
 
-> **VSCode の場合:** ターミナル右上の分割ボタン、または `Ctrl+Shift+5` でターミナルを複製できます。
+> **CLI の場合:** 別のターミナルウィンドウから `gcloud compute ssh` で 2 本目の SSH 接続を張ってください。
+> または `tmux` を使って 1 つの SSH 内でペインを分割する方法もあります:
+> ```bash
+> tmux            # セッション開始
+> # Ctrl+B → "  で横分割、 Ctrl+B → %  で縦分割
+> # Ctrl+B → 矢印キー でペイン移動
+> ```
+>
+> **VSCode Remote SSH の場合:** ターミナル右上の分割ボタン、または `Ctrl+Shift+5` でターミナルを複製できます。
 >
 > ![ターミナル複製](../../assets/ターミナル複製.gif)
 

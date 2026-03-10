@@ -75,18 +75,45 @@ fi
 #    alfworld/spacy/thinc が Python 3.12 非対応のため 3.10 を使用
 # ============================================================
 echo "[4/4] Installing Python 3.10 and dependencies..."
-if ! command -v python3.10 &> /dev/null; then
-  echo "  Installing Python 3.10 from deadsnakes PPA..."
-  sudo add-apt-repository -y ppa:deadsnakes/ppa
-  sudo apt-get update
+
+# Python 3.10 の検出 — conda 環境 (GCP Deep Learning VM 等) またはシステム Python
+PYTHON310=""
+if command -v python3.10 &> /dev/null; then
+  PYTHON310="python3.10"
+  echo "  Found python3.10: $(python3.10 --version)"
+elif command -v python3 &> /dev/null && python3 --version 2>&1 | grep -q "3\.10"; then
+  PYTHON310="python3"
+  echo "  Found python3 (3.10): $(python3 --version)"
+elif command -v python &> /dev/null && python --version 2>&1 | grep -q "3\.10"; then
+  PYTHON310="python"
+  echo "  Found python (3.10): $(python --version)"
 fi
-sudo apt-get install -y python3.10 python3.10-venv python3.10-dev cmake build-essential
+
+# OS 判定
+OS_ID=$(. /etc/os-release && echo "$ID")
+
+if [ -z "${PYTHON310}" ]; then
+  if [ "$OS_ID" = "ubuntu" ]; then
+    echo "  Installing Python 3.10 from deadsnakes PPA..."
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt-get update
+    sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+    PYTHON310="python3.10"
+  else
+    echo "ERROR: Python 3.10 not found. On Debian/GCP Deep Learning VM, conda の Python 3.10 が必要です。"
+    echo "  conda activate base  などで Python 3.10 を有効化してから再実行してください。"
+    exit 1
+  fi
+fi
+
+# ビルド依存パッケージ (cmake, build-essential)
+sudo apt-get install -y cmake build-essential 2>/dev/null || true
 
 # venv の作成 (Python 3.10)
 VENV_DIR="${APP_DIR}/.venv"
 if [ ! -d "${VENV_DIR}" ]; then
   echo "  Creating virtual environment (Python 3.10): ${VENV_DIR}"
-  python3.10 -m venv "${VENV_DIR}"
+  ${PYTHON310} -m venv "${VENV_DIR}"
 fi
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
