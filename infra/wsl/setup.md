@@ -106,12 +106,19 @@ cd AgentBench_Small_For_LLM2025
 ```bash
 # (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (内部で必要な箇所のみ sudo)
 bash infra/wsl/setup1.sh
+
+# docker グループ反映 (sudo なしで docker を使うために必須)
+# ※ setup1.sh 内で sudo usermod -aG docker $USER は実行済み
 ```
 
 ```bash
-# docker グループ反映のため再ログイン
-newgrp docker          # または exit → 再接続
+# 再ログインして docker グループを反映
+exit
+# WSL を再度開く (Windows Terminal 等から)
 ```
+
+> **重要**: `exit` → 再接続を行わないと docker グループが反映されません。
+> `newgrp docker` でも一時的に反映できますが、新しいターミナルを開くたびに再実行が必要なため、**再ログインを推奨**します。
 
 ### Docker Desktop 版 (setup1_desktop.sh)
 
