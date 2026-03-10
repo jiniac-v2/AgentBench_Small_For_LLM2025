@@ -186,18 +186,20 @@ cd ~/AgentBench_Small_For_LLM2025
 
 # (1) Docker / NVIDIA / Python 依存の用意 (内部で必要な箇所のみ sudo)
 bash infra/gcp/setup1.sh
-
-# docker グループ反映のため再ログイン (sudo なしで docker を使うために必須)
-# ※ setup1.sh 内で sudo usermod -aG docker $USER は実行済み
-exit
-gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
-> **重要**: `exit` → 再ログインを行わないと docker グループが反映されません。
-> `newgrp docker` でも一時的に反映できますが、新しいターミナルを開くたびに再実行が必要なため、**再ログインを推奨**します。
+```bash
+# (2) docker グループを現在のシェルに反映 (sudo なしで docker を使うために必須)
+# ※ setup1.sh 内で sudo usermod -aG docker $USER は実行済み
+# ※ 後続の setup2.sh や評価で docker コマンドを使うため、ここで必ず反映させる
+newgrp docker
+```
+
+> **補足**: `newgrp docker` は現在のシェルセッションにのみ有効です。
+> 新しいターミナルを開いた場合は再度 `newgrp docker` を実行するか、一度ログアウト → 再ログインしてください。
 
 ```bash
-# (2) ALFWorld データ / .env / Docker イメージ pull の用意
+# (3) ALFWorld データ / .env / Docker イメージ pull の用意
 cd ~/AgentBench_Small_For_LLM2025
 bash infra/gcp/setup2.sh
 ```

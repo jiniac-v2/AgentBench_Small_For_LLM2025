@@ -106,19 +106,23 @@ cd AgentBench_Small_For_LLM2025
 ```bash
 # (1) Docker Engine / NVIDIA Container Toolkit / Python 依存 (内部で必要な箇所のみ sudo)
 bash infra/wsl/setup1.sh
-
-# docker グループ反映 (sudo なしで docker を使うために必須)
-# ※ setup1.sh 内で sudo usermod -aG docker $USER は実行済み
 ```
 
 ```bash
-# 再ログインして docker グループを反映
-exit
-# WSL を再度開く (Windows Terminal 等から)
+# (2) docker グループを現在のシェルに反映 (sudo なしで docker を使うために必須)
+# ※ setup1.sh 内で sudo usermod -aG docker $USER は実行済み
+# ※ 後続の setup2.sh や評価で docker コマンドを使うため、ここで必ず反映させる
+newgrp docker
 ```
 
-> **重要**: `exit` → 再接続を行わないと docker グループが反映されません。
-> `newgrp docker` でも一時的に反映できますが、新しいターミナルを開くたびに再実行が必要なため、**再ログインを推奨**します。
+> **補足**: `newgrp docker` は現在のシェルセッションにのみ有効です。
+> 新しいターミナルを開いた場合は再度 `newgrp docker` を実行するか、一度ログアウト → 再ログインしてください。
+
+```bash
+# (3) ALFWorld データ / .env / Docker イメージ pull
+cd ~/AgentBench_Small_For_LLM2025
+bash infra/wsl/setup2.sh
+```
 
 ### Docker Desktop 版 (setup1_desktop.sh)
 
@@ -128,8 +132,6 @@ bash infra/wsl/setup1_desktop.sh
 ```
 
 > Docker Desktop 版は docker グループへの追加や再ログインは不要です。
-
-### 共通: setup2.sh
 
 ```bash
 # (2) ALFWorld データ / .env / Docker イメージ pull
