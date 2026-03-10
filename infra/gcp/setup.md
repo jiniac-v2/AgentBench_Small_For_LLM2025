@@ -3,7 +3,8 @@
 ## 前提条件
 
 - `gcloud` CLI インストール済み — [インストール方法](https://docs.cloud.google.com/sdk/docs/install-sdk?hl=ja)
-> winの方はWSLでやったほうがいいかも
+
+> Windows の場合は WSL 上で `gcloud` を使うことを推奨します。
 
 ## Step 1: 認証・プロジェクト設定
 
@@ -80,7 +81,7 @@ for q in json.load(sys.stdin).get('quotas', []):
 4. **リクエストの説明** に理由を記入（例: `Need 1 NVIDIA L4 GPU for LLM evaluation on G2 VM`）
 5. **「完了」** → **「次へ」** → 連絡先を確認して **「リクエストを送信」**
 
-> 引き上げは1分くらいで許可降ります
+> 引き上げは通常1分程度で承認されます。
 
 ## Step 5: 利用可能なゾーンの確認
 
@@ -142,16 +143,15 @@ vi terraform/terraform.tfvars    # project_id, region, zone を設定
 `terraform.tfvars`:
 ```hcl
 project_id   = "your-project-id"    # 必須
-region       = "asia-northeast1"    # Step 5 で確認したリージョン. 過疎ってそうなリージョンを選択することを推奨
-zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン．過疎ってそうなゾーンを選択することを推奨．
+region       = "asia-northeast1"    # Step 5 で確認したリージョン (空きのあるリージョンを推奨)
+zone         = "asia-northeast1-a"  # Step 5 で確認したゾーン (空きのあるゾーンを推奨)
 machine_type = "g2-standard-8"      # 8 vCPU, 32GB RAM, NVIDIA L4
 disk_size_gb = 200
-git_branch   = ""              # VM にクローンするブランチ(現在:kit_v0.2)
+git_branch   = ""              # VM にクローンするブランチ
 ```
 
-> 基本的に本キットでは，初期構築を１度やればあとはVMを停止→再起動させても同じ作業をしなくて済むようになってます．
-> が，GCPの仕様上，GPUが枯渇しているリージョン・ゾーンで停止してしまうと，再起動時にGPUが掴めなくてマシン作り直しになることがあります．
-> ある意味，その為にこのようなキットがあるとも
+> 初期構築を1度行えば、VM を停止→再起動しても同じ作業は不要です。
+> ただし GCP の仕様上、GPU が枯渇しているリージョン・ゾーンで停止すると再起動時に GPU を確保できず、VM の再作成が必要になることがあります。
 
 ```bash
 # VM 作成 + 構築完了待ち + リポジトリ clone
@@ -162,8 +162,7 @@ bash infra/gcp/setup-gcp.sh
 1. `terraform apply` (VM 作成)
 2. startup script が自動で clone (private リポの場合は Secret Manager の PAT を使用)
 
-> 基本的にここで失敗しそうな原因はリージョンガチャした結果，そのリージョン/ゾーンは使えないよ，と言われたパターンが大抵です．
-> また別のリージョン/ゾーンに変えてみてください．
+> 失敗する場合はリージョン・ゾーンの GPU 在庫不足が大半です。別のリージョン・ゾーンに変更して再試行してください。
 
 → [Step 7: VM に接続](#step-7-vm-に接続) に進む
 
@@ -176,7 +175,7 @@ SSH で VM に接続します。接続方法は2つあります:
 - **方法 A**: `gcloud compute ssh` コマンド（すぐ使える）
 - **方法 B**: VSCode Remote - SSH（IDE 機能をフル活用したい場合）
 
-詳細は [VM 接続方法](#vm-接続方法) を参照してください．方法Bを推奨します．
+詳細は [VM 接続方法](#vm-接続方法) を参照してください。方法 B を推奨します。
 
 ## Step 8: セットアップスクリプト
 
@@ -215,7 +214,7 @@ docker compose ps
 docker compose logs -f vllm
 ```
 
-> vLLM は立ち上げに時間がかかるので，docker compose logs で `Uvicorn running on` が表示されるまで待ってください．
+> vLLM は起動に時間がかかるため、`docker compose logs -f vllm` で `Uvicorn running on` が表示されるまで待ってください。
 
 ## 次のステップ
 
@@ -233,7 +232,7 @@ gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
 
 ### 方法 B: VSCode Remote - SSH (推奨)
 
-後ほどターミナルを複数使うので，こちらを推奨
+後ほどターミナルを複数使うため、こちらを推奨します。
 
 #### 前提
 
