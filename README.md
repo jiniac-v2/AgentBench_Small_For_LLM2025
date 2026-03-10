@@ -50,14 +50,23 @@ CSV に列挙した複数モデルを連続で評価するパイプラインで�
 詳細は [評価の実行 → 複数モデル一括実行](infra/gcp/runbook.md#複数モデル一括実行) を参照してください。
 
 ```bash
-# 仮想環境を有効化
+# 1. 仮想環境の作成 (初回のみ)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. 仮想環境を有効化 (2回目以降)
 source .venv/bin/activate
 
-# Prefect サーバー起動 (別ターミナル)
+# 3. CSV を準備
+cp eval/models.csv.example eval/models.csv
+# eval/models.csv を編集 (model_path, hf_token, PreCheck 等を記入)
+
+# 4. Prefect サーバー起動 (別ターミナル)
 prefect server start
 
-# 実行
-python3 eval/runbook.py [models.csv]
+# 5. 実行
+python3 eval/runbook.py eval/models.csv
 ```
 
 ## Citation
