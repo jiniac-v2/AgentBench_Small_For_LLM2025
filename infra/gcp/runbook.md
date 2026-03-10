@@ -76,17 +76,7 @@ curl -s http://localhost:8000/health
 
 ---
 
-## Step 4: タスクサーバー起動 (ターミナル 2)
-
-`Ctrl+Shift+`` で新しいターミナルを開きます:
-
-```bash
-bash eval/run-task-server.sh
-```
-
----
-
-## Step 5: .env の準備
+## Step 4: .env の準備 (ターミナル 1)
 
 `.env.example` に Slack Webhook URL を記入してからコピーします:
 
@@ -97,9 +87,7 @@ cp .env.example .env
 
 ---
 
-## Step 6: Prefect サーバー起動 (ターミナル 1)
-
-VSCode のターミナルで実行します。
+## Step 5: Prefect サーバー起動 (ターミナル 1)
 
 ```bash
 source .venv/bin/activate
@@ -110,11 +98,23 @@ prefect server start
 
 ---
 
+## Step 6: タスクサーバー起動 (ターミナル 2)
+
+`Ctrl+Shift+`` で新しいターミナルを開きます:
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+bash eval/run-task-server.sh
+```
+
+---
+
 ## Step 7: 評価実行 (ターミナル 3)
 
 `Ctrl+Shift+`` でもう 1 つターミナルを開きます:
 
 ```bash
+cd ~/AgentBench_Small_For_LLM2025
 source .venv/bin/activate
 python3 eval/runbook.py eval/models.csv
 ```
