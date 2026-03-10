@@ -2,10 +2,7 @@
 
 実験のたびに実行する手順です。環境構築は済んでいる前提: [クラウド環境構築](setup.md)
 
-> **Note**: `python3` を直接実行する場合は、事前に仮想環境を有効化してください:
-> ```bash
-> cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
-> ```
+> **Note**: `python3` を直接実行する場合は、事前に `source .venv/bin/activate` してください。
 > `bash eval/...` で実行するスクリプトは内部で自動的に有効化します。
 
 ---
@@ -84,7 +81,6 @@ curl -s http://localhost:8000/health
 `Ctrl+Shift+`` で新しいターミナルを開きます:
 
 ```bash
-cd ~/AgentBench_Small_For_LLM2025
 bash eval/run-task-server.sh
 ```
 
@@ -95,13 +91,11 @@ bash eval/run-task-server.sh
 VSCode のターミナルで実行します。
 
 ```bash
-cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
+source .venv/bin/activate
 prefect server start
 ```
 
 `Started server at http://0.0.0.0:4200` が表示されたら OK。
-
----
 
 ---
 
@@ -110,7 +104,7 @@ prefect server start
 `Ctrl+Shift+`` でもう 1 つターミナルを開きます:
 
 ```bash
-cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
+source .venv/bin/activate
 python3 eval/runbook.py eval/models.csv
 ```
 
@@ -163,6 +157,5 @@ docker compose logs -f vllm
 ### vLLM の再起動
 
 ```bash
-cd ~/AgentBench_Small_For_LLM2025
 docker compose down && docker compose up -d
 ```
