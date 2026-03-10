@@ -10,7 +10,24 @@
 
 ---
 
-## Step 1: CSV の準備
+## Step 1: VM に SSH ログイン
+
+```bash
+gcloud compute ssh VM_NAME --zone YOUR_ZONE --project YOUR_PROJECT_ID
+```
+
+Prefect UI にアクセスする場合はポートフォワーディング付きで接続します:
+
+```bash
+gcloud compute ssh VM_NAME --zone YOUR_ZONE --project YOUR_PROJECT_ID \
+  -- -L 4200:localhost:4200
+```
+
+> ログイン後、ブラウザで `http://localhost:4200` から Prefect UI を確認できます。
+
+---
+
+## Step 2: CSV の準備
 
 評価するモデルを CSV に記載します。→ [CSV スキーマの詳細](../../eval/README.md#csv-スキーマ)
 
@@ -33,7 +50,7 @@ gcloud compute scp eval/models.csv VM_NAME:~/AgentBench_Small_For_LLM2025/eval/m
 
 ---
 
-## Step 2: vLLM の起動確認
+## Step 3: vLLM の起動確認
 
 初回または VM を再起動した場合は、vLLM が起動していることを確認します。
 
@@ -57,52 +74,67 @@ docker compose logs -f vllm
 curl -s http://localhost:8000/health
 ```
 
-> runbook.sh が CSV の各レコードごとにモデルを自動切替するため、
+> runbook.py が CSV の各レコードごとにモデルを自動切替するため、
 > ここでは何のモデルが載っていても構いません。
 
 ---
 
-## Step 3: タスクサーバー起動
+## Step 4: tmux セッション開始
 
-**別ターミナル**でタスクサーバーを起動します。フォアグラウンドで動き続けます。
+3 つのプロセスを同時に動かすため tmux を使います。
+
+```bash
+tmux new -s eval
+```
+
+> tmux の基本操作:
+> - `Ctrl+B` → `%` : 縦分割
+> - `Ctrl+B` → `"` : 横分割
+> - `Ctrl+B` → 矢印キー : ペイン移動
+> - `Ctrl+B` → `d` : デタッチ (SSH を切っても動き続ける)
+> - `tmux attach -t eval` : 再接続
+
+---
+
+## Step 5: Prefect サーバー起動 (ペイン 1)
+
+```bash
+cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
+prefect server start
+```
+
+`Started server at http://0.0.0.0:4200` が表示されたら OK。
+
+---
+
+## Step 6: タスクサーバー起動 (ペイン 2)
+
+`Ctrl+B` → `%` で新しいペインを作成:
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 bash eval/run-task-server.sh
 ```
 
-> **CLI の場合:** 別のターミナルウィンドウから `gcloud compute ssh` で 2 本目の SSH 接続を張ってください。
-> または `tmux` を使って 1 つの SSH 内でペインを分割する方法もあります:
-> ```bash
-> tmux            # セッション開始
-> # Ctrl+B → "  で横分割、 Ctrl+B → %  で縦分割
-> # Ctrl+B → 矢印キー でペイン移動
-> ```
->
-> **VSCode Remote SSH の場合:** ターミナル右上の分割ボタン、または `Ctrl+Shift+5` でターミナルを複製できます。
->
-> ![ターミナル複製](../../assets/ターミナル複製.gif)
-
-起動したらこのターミナルはそのまま放置して、**元のターミナル**で Step 4 に進みます。
-
 ---
 
-## Step 4: 評価実行
+## Step 7: 評価実行 (ペイン 3)
+
+`Ctrl+B` → `%` で新しいペインを作成:
 
 ```bash
-cd ~/AgentBench_Small_For_LLM2025
-bash eval/runbook.sh eval/models.csv
+cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
+python3 eval/runbook.py eval/models.csv
 ```
 
 評価パイプラインの詳細・Valid_Status の一覧は [評価リファレンス](../../eval/README.md#評価パイプライン) を参照してください。
 
-### オプション: Prefect でトレース
-
-Prefect を使って Web UI で進捗確認したい場合は [Prefect でトレース](../../eval/README.md#オプション-prefect-でトレース) を参照してください。
+> 評価開始後は `Ctrl+B` → `d` でデタッチして SSH を切断しても問題ありません。
+> `tmux attach -t eval` で再接続できます。
 
 ---
 
-## Step 5: 結果確認
+## Step 8: 結果確認
 
 ```bash
 # プレフィックス付きディレクトリが outputs/ 配下にある
@@ -115,12 +147,11 @@ cat eval/models.csv
 ローカルにコピー:
 
 ```bash
+# ローカルで実行
 gcloud compute scp --recurse \
-  agentbench-eval:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
+  VM_NAME:~/AgentBench_Small_For_LLM2025/outputs/ ./outputs/ \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
-
-> VSCode Remote SSH を使っている場合は、エクスプローラーから outputs 配下を直接ダウンロードできます。
 
 ---
 
