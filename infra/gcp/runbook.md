@@ -53,6 +53,7 @@ gcloud compute scp eval/models.csv VM_NAME:~/AgentBench_Small_For_LLM2025/eval/m
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
+newgrp docker          # 新しいシェルでは docker グループが未反映のため必須
 
 # コンテナの状態確認
 docker compose ps

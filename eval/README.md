@@ -171,6 +171,45 @@ ls -la data/alfworld/logic
 # /root/ 配下を指している → setup2.sh を sudo なしで再実行
 ```
 
+### docker: Permission denied
+
+```
+docker.errors.DockerException: Error while fetching server API version:
+  ('Connection aborted.', PermissionError(13, 'Permission denied'))
+```
+
+現在のシェルに docker グループが反映されていません。各ターミナルで `newgrp docker` を実行してください:
+
+```bash
+newgrp docker
+```
+
+> `newgrp docker` はターミナルごとに必要です。新しいターミナルを開くたびに実行してください。
+> 一度ログアウト → 再ログインすればすべてのシェルに反映されます。
+
+### docker compose up: NVIDIA ドライバエラー
+
+```
+nvidia-container-cli: initialization error: load library failed:
+  libnvidia-ml.so.1: cannot open shared object file: no such file or directory
+```
+
+NVIDIA GPU ドライバがインストールされていないか、認識されていません。
+
+```bash
+# ドライバの状態確認
+nvidia-smi
+
+# GCP Deep Learning VM の場合
+sudo /opt/deeplearning/install-driver.sh
+
+# インストール後に確認
+nvidia-smi
+```
+
+> `setup1.sh` を実行済みであれば通常このエラーは発生しません。
+> VM を再作成した場合やイメージが異なる場合は手動インストールが必要です。
+
 ### vLLM 接続エラー
 
 ```bash
