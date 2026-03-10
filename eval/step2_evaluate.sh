@@ -26,6 +26,17 @@ echo "============================================"
 echo " [Step2] 評価実行"
 echo "============================================"
 
+# ── 0. .env 読み込み (Step1 で更新された VLLM_MODEL 等を取得) ──
+
+if [ -f "${APP_DIR}/.env" ]; then
+    echo "[Step2] .env を読み込み..."
+    set -a
+    # shellcheck disable=SC1091
+    source "${APP_DIR}/.env"
+    set +a
+    echo "[Step2] VLLM_MODEL=${VLLM_MODEL}"
+fi
+
 # ── 1. タスクサーバー起動 ──
 
 echo "[Step2] タスクサーバー起動..."
