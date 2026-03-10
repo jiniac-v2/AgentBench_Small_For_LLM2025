@@ -105,6 +105,17 @@ def notify_slack(
 # ── ユーティリティ ──────────────────────────────────
 
 
+def detect_encoding(path: str) -> str:
+    """CSV ファイルのエンコーディングを判定する (utf-8 / cp932)."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    try:
+        raw.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return "cp932"
+
+
 def format_duration(seconds: int) -> str:
     """秒数を HH:MM:SS 形式に変換する."""
     h = seconds // 3600
@@ -149,11 +160,12 @@ def extract_scores(output_dir: str | None) -> tuple[str, str, str]:
 
 def update_csv_row(csv_path: str, row_index: int, row: dict, fieldnames: list[str]) -> None:
     """CSV の指定データ行を置き換える (0-indexed, ヘッダー行は含まない)."""
-    with open(csv_path) as f:
+    enc = detect_encoding(csv_path)
+    with open(csv_path, encoding=enc) as f:
         reader = csv.DictReader(f)
         all_rows = list(reader)
     all_rows[row_index] = row
-    with open(csv_path, "w", newline="") as f:
+    with open(csv_path, "w", newline="", encoding=enc) as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(all_rows)
@@ -293,7 +305,8 @@ def run_evaluation(csv_file: str | None = None) -> None:
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
     # CSV 読み込み (DictReader で列名ベース)
-    with open(csv_path) as f:
+    enc = detect_encoding(csv_path)
+    with open(csv_path, encoding=enc) as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
         rows = list(reader)
