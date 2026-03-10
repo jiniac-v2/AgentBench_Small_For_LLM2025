@@ -79,24 +79,9 @@ curl -s http://localhost:8000/health
 
 ---
 
-## Step 4: tmux セッション開始
+## Step 4: Prefect サーバー起動 (ターミナル 1)
 
-3 つのプロセスを同時に動かすため tmux を使います。
-
-```bash
-tmux new -s eval
-```
-
-> tmux の基本操作:
-> - `Ctrl+B` → `%` : 縦分割
-> - `Ctrl+B` → `"` : 横分割
-> - `Ctrl+B` → 矢印キー : ペイン移動
-> - `Ctrl+B` → `d` : デタッチ (SSH を切っても動き続ける)
-> - `tmux attach -t eval` : 再接続
-
----
-
-## Step 5: Prefect サーバー起動 (ペイン 1)
+VSCode のターミナルで実行します。
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
@@ -107,9 +92,9 @@ prefect server start
 
 ---
 
-## Step 6: タスクサーバー起動 (ペイン 2)
+## Step 5: タスクサーバー起動 (ターミナル 2)
 
-`Ctrl+B` → `%` で新しいペインを作成:
+`Ctrl+Shift+`` で新しいターミナルを開きます:
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
@@ -118,9 +103,9 @@ bash eval/run-task-server.sh
 
 ---
 
-## Step 7: 評価実行 (ペイン 3)
+## Step 6: 評価実行 (ターミナル 3)
 
-`Ctrl+B` → `%` で新しいペインを作成:
+`Ctrl+Shift+`` でもう 1 つターミナルを開きます:
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025 && source .venv/bin/activate
@@ -129,12 +114,9 @@ python3 eval/runbook.py eval/models.csv
 
 評価パイプラインの詳細・Valid_Status の一覧は [評価リファレンス](../../eval/README.md#評価パイプライン) を参照してください。
 
-> 評価開始後は `Ctrl+B` → `d` でデタッチして SSH を切断しても問題ありません。
-> `tmux attach -t eval` で再接続できます。
-
 ---
 
-## Step 8: 結果確認
+## Step 7: 結果確認
 
 ```bash
 # プレフィックス付きディレクトリが outputs/ 配下にある
