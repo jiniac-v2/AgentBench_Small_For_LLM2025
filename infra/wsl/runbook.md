@@ -1,6 +1,6 @@
-# ローカル評価の実行
+# WSL 評価の実行
 
-実験のたびに実行する手順です。環境構築は済んでいる前提: [ローカル環境構築](setup.md)
+実験のたびに実行する手順です。環境構築は済んでいる前提: [WSL 環境構築](setup.md)
 
 > **Note**: `python3` を直接実行する場合は、事前に仮想環境を有効化してください:
 > ```bash
@@ -27,6 +27,7 @@ vi eval/models.csv
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
+newgrp docker          # 新しいシェルでは docker グループが未反映のため必須
 
 # コンテナの状態確認
 docker compose ps
@@ -45,45 +46,69 @@ docker compose logs -f vllm
 curl -s http://localhost:8000/health
 ```
 
-> runbook.sh が CSV の各レコードごとにモデルを自動切替するため、
+> runbook.py が CSV の各レコードごとにモデルを自動切替するため、
 > ここでは何のモデルが載っていても構いません。
 
 ---
 
-## Step 3: タスクサーバー起動
+## Step 3: .env の準備
 
-**別ターミナル**でタスクサーバーを起動します。フォアグラウンドで動き続けます。
+`.env.example` に Slack Webhook URL を記入してからコピーします (Slack 通知が不要なら空欄のままでOK):
+
+```bash
+vi .env.example   # SLACK_WEBHOOK_URL= に URL を貼る
+cp .env.example .env
+```
+
+---
+
+## Step 4: Prefect サーバー起動 (ターミナル 1)
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
-bash eval/run-task-server.sh
+source .venv/bin/activate
+prefect server start
 ```
+
+`Started server at http://0.0.0.0:4200` が表示されたら OK。
+ブラウザで `http://localhost:4200` から Prefect UI を確認できます。
+
+---
+
+## Step 5: タスクサーバー起動 (ターミナル 2)
+
+新しいターミナルを開きます。
 
 > **Windows Terminal の場合:** `Ctrl+Shift+D` でペインを分割できます。
 >
 > **VSCode の場合:** ターミナル右上の分割ボタン、または `Ctrl+Shift+5` でターミナルを複製できます。
 
-起動したらこのターミナルはそのまま放置して、**元のターミナル**で Step 4 に進みます。
+```bash
+cd ~/AgentBench_Small_For_LLM2025
+newgrp docker          # タスクワーカー (dbbench) が docker を使うため必須
+bash eval/run-task-server.sh
+```
+
+起動したらこのターミナルはそのまま放置して、新しいターミナルで Step 6 に進みます。
 
 ---
 
-## Step 4: 評価実行
+## Step 6: 評価実行 (ターミナル 3)
+
+もう 1 つ新しいターミナルを開きます:
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 newgrp docker          # 評価スクリプトが docker コマンドを使うため必須
-bash eval/runbook.sh eval/models.csv
+source .venv/bin/activate
+python3 eval/runbook.py eval/models.csv
 ```
 
 評価パイプラインの詳細・Valid_Status の一覧は [評価リファレンス](../../eval/README.md#評価パイプライン) を参照してください。
 
-### オプション: Prefect でトレース
-
-Prefect を使って Web UI で進捗確認したい場合は [Prefect でトレース](../../eval/README.md#オプション-prefect-でトレース) を参照してください。
-
 ---
 
-## Step 5: 結果確認
+## Step 7: 結果確認
 
 ```bash
 # プレフィックス付きディレクトリが outputs/ 配下にある
