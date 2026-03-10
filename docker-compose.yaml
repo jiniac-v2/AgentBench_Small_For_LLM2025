@@ -16,7 +16,7 @@ services:
     command: >
       --model ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
       --max-model-len ${VLLM_MAX_MODEL_LEN:-8192}
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.95}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
     deploy:
       resources:
         reservations:

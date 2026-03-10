@@ -251,7 +251,7 @@ vi .env
 ```bash
 VLLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 VLLM_MAX_MODEL_LEN=8192
-VLLM_GPU_MEMORY_UTILIZATION=0.95
+VLLM_GPU_MEMORY_UTILIZATION=0.90
 HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxx    # gated model の場合
 ```
 
@@ -297,7 +297,7 @@ sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"your-org/your-model\"|" configs/a
 | RTX 5090 | 32GB | ~14B (余裕あり) |
 | A100 / H100 | 40-80GB | ~70B |
 
-> `VLLM_GPU_MEMORY_UTILIZATION=0.95` はデフォルトで VRAM の 95% を使います。
+> `VLLM_GPU_MEMORY_UTILIZATION=0.90` はデフォルトで VRAM の 90% を使います。
 > OOM が出る場合は `0.85` に下げるか、`VLLM_MAX_MODEL_LEN` を小さくしてください。
 
 ---
