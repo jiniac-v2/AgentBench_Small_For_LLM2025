@@ -49,23 +49,16 @@ CSV に列挙した複数モデルを連続で評価するパイプラインで�
 [Prefect](https://www.prefect.io/) による GUI 監視と Slack Webhook 通知に対応しています。
 詳細は [評価の実行 → 複数モデル一括実行](infra/gcp/runbook.md#複数モデル一括実行) を参照してください。
 
+**前提:** 環境構築 ([WSL](infra/wsl/setup.md) or [GCP](infra/gcp/setup.md)) が完了していること
+
 ```bash
-# 1. 仮想環境の作成 (初回のみ)
-python3 -m venv .venv
+# セットアップ (初回のみ)
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+cp eval/models.csv.example eval/models.csv  # 作成後、model_path / hf_token / PreCheck 等を記入
+
+# 実行
 source .venv/bin/activate
-pip install -r requirements.txt
-
-# 2. 仮想環境を有効化 (2回目以降)
-source .venv/bin/activate
-
-# 3. CSV を準備
-cp eval/models.csv.example eval/models.csv
-# eval/models.csv を編集 (model_path, hf_token, PreCheck 等を記入)
-
-# 4. Prefect サーバー起動 (別ターミナル)
-prefect server start
-
-# 5. 実行
+prefect server start &                      # Prefect UI: http://localhost:4200
 python3 eval/runbook.py eval/models.csv
 ```
 
