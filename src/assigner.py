@@ -438,6 +438,21 @@ def _load_env_file(env_path: str = ".env"):
 
 if __name__ == "__main__":
     import argparse
+    import urllib.request
+
+    def _debug(msg):
+        print(ColorMessage.cyan(f"[DEBUG] {msg}"))
+
+    def _check_port(host, port, label):
+        """指定ポートの疎通確認"""
+        import socket
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                _debug(f"{label} (port {port}): OK - 接続可能")
+                return True
+        except (ConnectionRefusedError, OSError) as e:
+            print(ColorMessage.red(f"[DEBUG] {label} (port {port}): NG - {e}"))
+            return False
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -448,34 +463,139 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    print("=" * 60)
+    _debug("=== 評価起動デバッグ開始 ===")
+    print("=" * 60)
+
+    # ── 0. 前提条件チェック ──
+
+    _debug("[Phase 0] 前提条件チェック")
+
+    # vLLM サーバー (port 8000) の確認
+    vllm_ok = _check_port("localhost", 8000, "vLLM サーバー")
+    if vllm_ok:
+        try:
+            req = urllib.request.Request("http://localhost:8000/v1/models", method="GET")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+                models = [m["id"] for m in data.get("data", [])]
+                _debug(f"vLLM ロード済みモデル: {models}")
+        except Exception as e:
+            print(ColorMessage.red(f"[DEBUG] vLLM /v1/models 応答取得失敗: {e}"))
+
+    # タスクサーバー (port 5000) の確認
+    task_ok = _check_port("localhost", 5000, "タスクサーバー")
+    if task_ok:
+        try:
+            req = urllib.request.Request("http://localhost:5000/api/list_workers", method="GET")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+                _debug(f"タスクサーバー ワーカー一覧: {list(data.keys())}")
+                for task_name, info in data.items():
+                    workers = info.get("workers", {})
+                    alive = sum(1 for w in workers.values() if w.get("status") == "alive")
+                    _debug(f"  {task_name}: {alive}/{len(workers)} workers alive")
+        except Exception as e:
+            print(ColorMessage.yellow(f"[DEBUG] タスクサーバー ワーカー取得失敗: {e}"))
+
+    if not vllm_ok:
+        print(ColorMessage.red(
+            "\n*** FATAL: vLLM サーバー (port 8000) に接続できません ***\n"
+            "  → eval/step1_start_vllm.sh でモデルを起動してください\n"
+            "  → または docker compose up -d で起動してください\n"
+        ))
+        sys.exit(1)
+
+    if not task_ok:
+        print(ColorMessage.red(
+            "\n*** FATAL: タスクサーバー (port 5000) に接続できません ***\n"
+            "  → eval/run-task-server.sh をバックグラウンドで起動してください:\n"
+            "     bash eval/run-task-server.sh &\n"
+            "  → または eval/step2_evaluate.sh 経由で実行してください\n"
+        ))
+        sys.exit(1)
+
+    # ── 1. 環境変数の解決 ──
+
+    _debug("[Phase 1] 環境変数の解決")
+
     # .env を読み込み（未設定の環境変数のみ）
     _load_env_file()
+    _debug(f".env 読み込み後 VLLM_MODEL={os.environ.get('VLLM_MODEL', '(未設定)')}")
 
     # VLLM_MODEL が未設定なら vLLM サーバーから自動取得
     if not os.environ.get("VLLM_MODEL"):
+        _debug("VLLM_MODEL 未設定 → vLLM サーバーから自動取得...")
         detected = _auto_detect_vllm_model()
         if detected:
             os.environ["VLLM_MODEL"] = detected
+            _debug(f"自動取得成功: VLLM_MODEL={detected}")
         else:
             print(ColorMessage.red(
                 "ERROR: VLLM_MODEL が未設定で、vLLM サーバーからも取得できませんでした。\n"
                 "  export VLLM_MODEL=<model_name> を実行するか、.env に設定してください。"
             ))
             sys.exit(1)
+    else:
+        _debug(f"VLLM_MODEL 既設定: {os.environ['VLLM_MODEL']}")
+
+    # ── 2. コンフィグ読み込み ──
+
+    _debug("[Phase 2] コンフィグ読み込み")
+    _debug(f"config file: {args.config}")
 
     loader = ConfigLoader()
     config_ = loader.load_from(args.config)
 
+    # agent 定義のデバッグ出力
+    agents_def = config_.get("definition", {}).get("agent", {})
+    for aname, acfg in agents_def.items():
+        module = acfg.get("module", "(none)")
+        body = acfg.get("parameters", {}).get("body", {})
+        model_val = body.get("model", "(none)")
+        _debug(f"Agent '{aname}': module={module}, body.model={model_val}")
+
     # api_agents.yaml の model: "${VLLM_MODEL}" を実際のモデル名に置換
     vllm_model = os.environ.get("VLLM_MODEL", "")
+    replaced_count = 0
     if vllm_model:
-        for agent_cfg in config_.get("definition", {}).get("agent", {}).values():
+        for aname, agent_cfg in agents_def.items():
             body = agent_cfg.get("parameters", {}).get("body", {})
             if isinstance(body.get("model"), str) and "${VLLM_MODEL}" in body["model"]:
                 body["model"] = vllm_model
+                replaced_count += 1
+                _debug(f"Agent '{aname}': model を '{vllm_model}' に置換")
+
+    if replaced_count == 0:
+        _debug("WARNING: ${{VLLM_MODEL}} を含む agent が見つかりませんでした")
+        # sed 済みの場合はそのまま使われる
+        for aname, acfg in agents_def.items():
+            body = acfg.get("parameters", {}).get("body", {})
+            model_val = body.get("model", "(none)")
+            _debug(f"  → Agent '{aname}' は model='{model_val}' のまま使用")
+
+    # task 定義のデバッグ出力
+    tasks_def = config_.get("definition", {}).get("task", {})
+    for tname, tcfg in tasks_def.items():
+        module = tcfg.get("module", "(none)")
+        addr = tcfg.get("parameters", {}).get("controller_address", "(default)")
+        _debug(f"Task '{tname}': module={module}, controller={addr}")
+
+    # assignments のデバッグ出力
+    assignments = config_.get("assignments", [])
+    _debug(f"Assignments: {len(assignments)} 件")
+    for a in assignments:
+        _debug(f"  agent={a.get('agent')} → task={a.get('task')}")
+
+    # ── 3. 評価開始 ──
+
+    _debug("[Phase 3] AssignmentConfig パース開始")
 
     value = AssignmentConfig.parse_obj(config_)
     value = AssignmentConfig.post_validate(value)
+
+    _debug("[Phase 4] Assigner 初期化・評価開始")
+
     v = value.dict()
     with std_out_err_redirect_tqdm() as orig_stdout:
         Assigner(value, args.retry).start(tqdm_out=orig_stdout)
