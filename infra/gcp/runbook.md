@@ -86,7 +86,18 @@ bash eval/run-task-server.sh
 
 ---
 
-## Step 5: Prefect サーバー起動 (ターミナル 1)
+## Step 5: .env の準備
+
+`.env.example` に Slack Webhook URL を記入してからコピーします:
+
+```bash
+vi .env.example   # SLACK_WEBHOOK_URL= に URL を貼る
+cp .env.example .env
+```
+
+---
+
+## Step 6: Prefect サーバー起動 (ターミナル 1)
 
 VSCode のターミナルで実行します。
 
@@ -99,7 +110,7 @@ prefect server start
 
 ---
 
-## Step 6: 評価実行 (ターミナル 3)
+## Step 7: 評価実行 (ターミナル 3)
 
 `Ctrl+Shift+`` でもう 1 つターミナルを開きます:
 
@@ -112,7 +123,7 @@ python3 eval/runbook.py eval/models.csv
 
 ---
 
-## Step 7: 結果確認
+## Step 8: 結果確認
 
 ```bash
 # プレフィックス付きディレクトリが outputs/ 配下にある
