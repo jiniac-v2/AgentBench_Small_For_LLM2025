@@ -1,9 +1,21 @@
 import json
 import os
+import re
 from copy import deepcopy
 from typing import Any, Dict, Set
 
 import yaml
+
+
+def _expand_env_vars(value):
+    """文字列中の ${VAR} や $VAR を環境変数で展開する."""
+    if not isinstance(value, str):
+        return value
+    return re.sub(
+        r'\$\{(\w+)\}|\$(\w+)',
+        lambda m: os.environ.get(m.group(1) or m.group(2), m.group(0)),
+        value,
+    )
 
 
 def deep_merge(base_item, new_item):
@@ -51,7 +63,8 @@ class ConfigLoader:
             raise e
         self.loading.remove(path)
         self.loaded[path] = config
-        return self.parse_default_and_overwrite(deepcopy(config))
+        result = self.parse_default_and_overwrite(deepcopy(config))
+        return self._expand_env_vars_recursive(result)
 
     def parse_imports(self, path, raw_config):
         raw_config = deepcopy(raw_config)
@@ -113,6 +126,18 @@ class ConfigLoader:
             return ret
         else:
             return config
+
+
+    @staticmethod
+    def _expand_env_vars_recursive(config):
+        """config 内の全文字列値に対して環境変数を展開する."""
+        if isinstance(config, dict):
+            return {k: ConfigLoader._expand_env_vars_recursive(v) for k, v in config.items()}
+        elif isinstance(config, list):
+            return [ConfigLoader._expand_env_vars_recursive(v) for v in config]
+        elif isinstance(config, str):
+            return _expand_env_vars(config)
+        return config
 
 
 if __name__ == "__main__":
