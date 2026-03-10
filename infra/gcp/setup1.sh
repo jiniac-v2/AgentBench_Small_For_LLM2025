@@ -92,6 +92,8 @@ fi
 source "${VENV_DIR}/bin/activate"
 
 pip install --upgrade pip setuptools wheel
+# Cython<3.0 を先にインストール (spacy 3.2.x のソースビルドに必要)
+pip install "Cython<3.0"
 pip install -r "${APP_DIR}/requirements.txt"
 
 # 必須モジュールの検証
