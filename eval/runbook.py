@@ -12,9 +12,10 @@ Features:
   - CSV 自動更新 (スコア・ステータス・所要時間)
 
 CSV format (ヘッダー行必須):
-  No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
+  No,machine,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
   Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
 
+  - 列の順序は任意 (列名で対応)
   - PreCheck が "OK" の行のみ評価対象
   - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
 
@@ -146,14 +147,16 @@ def extract_scores(output_dir: str | None) -> tuple[str, str, str]:
     return ("", "", "")
 
 
-def update_csv_line(csv_path: str, line_num: int, new_line: str) -> None:
-    """CSV の指定行を置き換える (1-indexed)."""
+def update_csv_row(csv_path: str, row_index: int, row: dict, fieldnames: list[str]) -> None:
+    """CSV の指定データ行を置き換える (0-indexed, ヘッダー行は含まない)."""
     with open(csv_path) as f:
-        lines = f.readlines()
-    if 0 < line_num <= len(lines):
-        lines[line_num - 1] = new_line + "\n"
-    with open(csv_path, "w") as f:
-        f.writelines(lines)
+        reader = csv.DictReader(f)
+        all_rows = list(reader)
+    all_rows[row_index] = row
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(all_rows)
 
 
 # ── Prefect タスク ──────────────────────────────────
@@ -289,12 +292,14 @@ def run_evaluation(csv_file: str | None = None) -> None:
     if not Path(csv_path).exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
-    # CSV 読み込み
+    # CSV 読み込み (DictReader で列名ベース)
     with open(csv_path) as f:
-        lines = f.readlines()
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        rows = list(reader)
 
-    reader = csv.reader(lines)
-    header = next(reader)  # ヘッダー行
+    if not fieldnames:
+        raise ValueError("CSV にヘッダー行がありません")
 
     total_count = 0
     finish_count = 0
@@ -308,47 +313,13 @@ def run_evaluation(csv_file: str | None = None) -> None:
         color="#439FE0",
     )
 
-    # CSV カラムインデックス
-    # No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
-    # Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
-    COL_NO = 0
-    COL_OMNI_ID = 1
-    COL_OMNI_ACCOUNT = 2
-    COL_MODEL_PATH = 3
-    COL_HF_TOKEN = 4
-    COL_EXTRACT_STATUS = 5
-    COL_LAST_UPDATE = 6
-    COL_MODEL_STATUS = 7
-    COL_PRECHECK = 8
-    COL_CURRENT_SCORE = 9
-    COL_VALID_STATUS = 10
-    COL_VALID_TIME = 11
-    COL_SCORE = 12
-    COL_DB_BENCH = 13
-    COL_ALFWORLD = 14
-    NUM_COLS = 15
-
-    for csv_line_num_0based, row in enumerate(reader):
-        csv_line_num = csv_line_num_0based + 2  # 1-indexed, ヘッダー分+1
-
-        if len(row) < COL_PRECHECK + 1:
-            continue
-
-        # パディング: カラム数が足りない場合は空文字で埋める
-        while len(row) < NUM_COLS:
-            row.append("")
-
-        no = row[COL_NO].strip()
-        omni_id = row[COL_OMNI_ID].strip()
-        omni_account = row[COL_OMNI_ACCOUNT].strip()
-        model_path = row[COL_MODEL_PATH].strip()
-        hf_token = row[COL_HF_TOKEN].strip()
-        extract_status = row[COL_EXTRACT_STATUS].strip()
-        last_update = row[COL_LAST_UPDATE].strip()
-        model_status = row[COL_MODEL_STATUS].strip()
-        pre_check = row[COL_PRECHECK].strip()
-        current_score = row[COL_CURRENT_SCORE].strip()
-        valid_status = row[COL_VALID_STATUS].strip()
+    for row_index, row in enumerate(rows):
+        omni_id = row.get("OmniID", "").strip()
+        omni_account = row.get("OmniAccount", "").strip()
+        model_path = row.get("model_path", "").strip()
+        hf_token = row.get("hf_token", "").strip()
+        pre_check = row.get("PreCheck", "").strip()
+        valid_status = row.get("Valid_Status", "").strip()
 
         if not omni_id or not model_path:
             continue
@@ -380,15 +351,14 @@ def run_evaluation(csv_file: str | None = None) -> None:
 
         pipeline_start = time.time()
 
-        def _build_csv_line(v_status, v_time, score="", db="", alf=""):
-            """現在の行データをもとに CSV 行を組み立てる."""
-            vals = list(row)
-            vals[COL_VALID_STATUS] = v_status
-            vals[COL_VALID_TIME] = v_time
-            vals[COL_SCORE] = score
-            vals[COL_DB_BENCH] = db
-            vals[COL_ALFWORLD] = alf
-            return ",".join(vals)
+        def _update_row(v_status, v_time, score="", db="", alf=""):
+            """現在の行データを更新して CSV に書き戻す."""
+            row["Valid_Status"] = v_status
+            row["Valid_Time"] = v_time
+            row["Score"] = score
+            row["DB_Bench"] = db
+            row["ALFWorld"] = alf
+            update_csv_row(csv_path, row_index, row, fieldnames)
 
         try:
             score_val, db_val, alf_val = evaluate_model(
@@ -399,8 +369,7 @@ def run_evaluation(csv_file: str | None = None) -> None:
             )
 
             duration = format_duration(int(time.time() - pipeline_start))
-            update_csv_line(csv_path, csv_line_num,
-                            _build_csv_line("Finish", duration, score_val, db_val, alf_val))
+            _update_row("Finish", duration, score_val, db_val, alf_val)
 
             logger.info(f"[OK] {label}: Score={score_val} DB={db_val} ALF={alf_val} Time={duration}")
             finish_count += 1
@@ -415,8 +384,7 @@ def run_evaluation(csv_file: str | None = None) -> None:
 
         except TimeoutError:
             duration = format_duration(int(time.time() - pipeline_start))
-            update_csv_line(csv_path, csv_line_num,
-                            _build_csv_line("Valid_TimeOut", duration))
+            _update_row("Valid_TimeOut", duration)
 
             logger.warning(f"[TIMEOUT] {label}: Valid_TimeOut ({duration})")
             error_count += 1
@@ -443,8 +411,7 @@ def run_evaluation(csv_file: str | None = None) -> None:
             elif "分析" in error_msg or "analysis" in error_msg.lower():
                 error_type = "Analysis-Error"
 
-            update_csv_line(csv_path, csv_line_num,
-                            _build_csv_line(error_type, duration))
+            _update_row(error_type, duration)
 
             logger.error(f"[FAIL] {label}: {error_type} ({duration}) - {e}")
             error_count += 1

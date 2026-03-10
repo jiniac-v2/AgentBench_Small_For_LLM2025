@@ -1,4 +1,4 @@
-OmniAccount,OmniID,Pre-check,Model_Path,READ_KEY,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
-nakashi104,1111,OK,Qwen/Qwen2.5-7B-Instruct,hf_XXXXXXXXXXXXXXXXXXXX,,,,,,
-testuser01,2222,OK,meta-llama/Llama-3.1-8B-Instruct,hf_XXXXXXXXXXXXXXXXXXXX,,,,,,
-skipuser99,3333,NG,some/model,hf_XXXXXXXXXXXXXXXXXXXX,,,,,,
+No,machine,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+1,,1111,nakashi104,Qwen/Qwen2.5-7B-Instruct,hf_XXXXXXXXXXXXXXXXXXXX,,,,OK,,,,,,
+2,,2222,testuser01,meta-llama/Llama-3.1-8B-Instruct,hf_XXXXXXXXXXXXXXXXXXXX,,,,OK,,,,,,
+3,,3333,skipuser99,some/model,hf_XXXXXXXXXXXXXXXXXXXX,,,,NG,,,,,,
