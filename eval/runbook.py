@@ -18,17 +18,17 @@ CSV format (ヘッダー行必須):
   - 列の順序は任意 (列名で対応)
   - PreCheck が "OK" の行のみ評価対象
   - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
+  - 制限時間: 1モデルあたり2時間
 
 Usage:
   # Prefect サーバー起動 (別ターミナル)
   prefect server start
 
+  # タスクサーバー起動 (別ターミナル)
+  bash eval/run-task-server.sh
+
   # 実行
   python3 eval/runbook.py [models.csv]
-
-  # Prefect UI 確認 (SSH トンネル経由)
-  gcloud compute ssh VM_NAME --ssh-flag="-L 4200:localhost:4200"
-  # ブラウザで http://localhost:4200
 
 環境変数 (.env):
   SLACK_WEBHOOK_URL  - Slack Incoming Webhook URL (任意)
@@ -48,7 +48,7 @@ from prefect.states import Cancelled
 
 # ── 定数 ────────────────────────────────────────────
 
-PIPELINE_TIMEOUT_SEC = 8400  # 2h20m per model
+PIPELINE_TIMEOUT_SEC = 7200  # 2h per model
 SCRIPT_DIR = Path(__file__).resolve().parent
 APP_DIR = SCRIPT_DIR.parent
 
@@ -188,11 +188,17 @@ def step1_start_vllm(model_path: str, read_key: str) -> None:
 
 @task(name="Step2: 評価実行", log_prints=True)
 def step2_evaluate() -> None:
-    """タスクサーバー起動 + assigner.py 実行."""
+    """run_evaluate.py 経由で assigner を実行 (タスクサーバーは外部で起動済み前提)."""
     logger = get_run_logger()
     logger.info("評価実行開始")
     result = subprocess.run(
-        ["bash", str(SCRIPT_DIR / "step2_evaluate.sh")],
+        [
+            "python3",
+            str(SCRIPT_DIR / "run_evaluate.py"),
+            "-c", "configs/assignments/default.yaml",
+            "-r",
+        ],
+        cwd=str(APP_DIR),
     )
     if result.returncode != 0:
         raise RuntimeError(f"評価失敗 (exit={result.returncode})")

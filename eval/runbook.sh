@@ -4,31 +4,34 @@ set -e
 # ============================================================
 # Evaluation Runbook
 #
-# CSV に列挙された複数モデルを連続的に評価するオーケストレータ。
-# 各ステップは独立したスクリプトとして実装されている。
+# CSV に列挙されたモデルを連続的に評価する。
+# 単一モデルでも CSV に1行書けば同じ手順で動く。
 #
-# NOTE: Prefect 版 (runbook.py) の利用を推奨。
-#       こちらは Prefect なしで実行したい場合のフォールバック。
+# 前提:
+#   - タスクサーバーが別ターミナルで起動済み
+#     (bash eval/run-task-server.sh)
 #
 # Usage:
 #   bash eval/runbook.sh [models.csv]
 #
 # CSV format (ヘッダー行必須):
-#   No,OmniID,OmniAccount,model_path,hf_token,extract_status,Last_Update,
-#   Model_Status,PreCheck,Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
+#   No,machine,OmniID,OmniAccount,model_path,hf_token,
+#   extract_status,Last_Update,Model_Status,PreCheck,
+#   Current_Score,Valid_Status,Valid_Time,Score,DB_Bench,ALFWorld
 #
-# パイプライン:
-#   Step 1: step1_start_vllm.sh  - vLLM 立ち上げ (docker compose)
-#   Step 2: step2_evaluate.sh    - 評価実行 (タスクサーバー + assigner.py)
-#   Step 3: step3_analysis.sh    - analysis.py 実行
-#   Step 4: step4_organize.sh    - 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
+# 各レコードで実行される処理:
+#   1. vLLM モデル切替 (docker compose 再起動 + キャッシュ削除)
+#   2. 評価実行 (python3 eval/run_evaluate.py → src.assigner)
+#   3. 結果集計 (python3 -m src.analysis)
+#   4. 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
+#   5. CSV にスコア・ステータス書き込み
 #
 # Valid_Status:
-#   vLLM-Error    : vLLM の立ち上げ失敗
-#   Valid-Error    : 評価中に失敗
-#   Analysis-Error : analysis.py の実行に失敗
-#   Valid_TimeOut  : パイプライン全体が制限時間超過 (2h20m)
-#   Finish         : 正常完了
+#   vLLM-Error     : vLLM の立ち上げ失敗
+#   Valid-Error     : 評価中に失敗
+#   Analysis-Error  : analysis.py の実行に失敗
+#   Valid_TimeOut   : 制限時間超過 (2h)
+#   Finish          : 正常完了
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -41,8 +44,8 @@ APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CSV_FILE="${1:-${SCRIPT_DIR}/models.csv}"
 RESULTS_BASE="${APP_DIR}/eval_results"
 
-# 1モデルあたりの制限時間 (2時間20分 = 8400秒)
-PIPELINE_TIMEOUT_SEC=8400
+# 1モデルあたりの制限時間 (2時間 = 7200秒)
+PIPELINE_TIMEOUT_SEC=7200
 
 STEP1_SCRIPT="${SCRIPT_DIR}/step1_start_vllm.sh"
 
@@ -53,17 +56,20 @@ fi
 
 mkdir -p "$RESULTS_BASE"
 
+# ── 前提条件チェック ─────────────────────────────
+
+echo "[runbook] タスクサーバーの起動を確認中..."
+if ! curl -s --max-time 3 http://localhost:5000/api >/dev/null 2>&1; then
+    echo ""
+    echo "ERROR: タスクサーバー (port 5000) が起動していません"
+    echo "  別ターミナルで以下を実行してください:"
+    echo "    bash eval/run-task-server.sh"
+    echo ""
+    exit 1
+fi
+echo "[runbook] タスクサーバー: OK"
+
 # ── ユーティリティ関数 ───────────────────────────
-
-update_csv() {
-    local line_num="$1"
-    local new_line="$2"
-    sed -i "${line_num}s|.*|${new_line}|" "$CSV_FILE"
-}
-
-get_latest_output() {
-    ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1
-}
 
 extract_scores() {
     local output_dir="$1"
@@ -106,13 +112,13 @@ update_csv_fields() {
     local current_line
     current_line="$(sed -n "${line_num}p" "$CSV_FILE")"
 
-    # カラム分割 (最大15カラム)
-    IFS=',' read -r c_no c_omni_id c_omni_account c_model_path c_hf_token \
+    # カラム分割 (16カラム: No,machine,OmniID,...,ALFWorld)
+    IFS=',' read -r c_no c_machine c_omni_id c_omni_account c_model_path c_hf_token \
                     c_extract_status c_last_update c_model_status c_precheck \
                     c_current_score c_valid_status c_valid_time c_score c_db_bench c_alfworld \
                     <<< "$current_line"
 
-    local new_line="${c_no},${c_omni_id},${c_omni_account},${c_model_path},${c_hf_token},${c_extract_status},${c_last_update},${c_model_status},${c_precheck},${c_current_score},${valid_status},${valid_time},${score},${db_bench},${alfworld}"
+    local new_line="${c_no},${c_machine},${c_omni_id},${c_omni_account},${c_model_path},${c_hf_token},${c_extract_status},${c_last_update},${c_model_status},${c_precheck},${c_current_score},${valid_status},${valid_time},${score},${db_bench},${alfworld}"
     sed -i "${line_num}s|.*|${new_line}|" "$CSV_FILE"
 }
 
@@ -123,7 +129,7 @@ echo "============================================"
 echo " Evaluation Runbook"
 echo " CSV:     ${CSV_FILE}"
 echo " Results: ${RESULTS_BASE}"
-echo " Mode:    docker compose"
+echo " Timeout: ${PIPELINE_TIMEOUT_SEC}s (per model)"
 echo "============================================"
 echo ""
 
@@ -133,7 +139,7 @@ error_count=0
 skip_count=0
 
 csv_line_num=0
-while IFS=',' read -r no omni_id omni_account model_path hf_token \
+while IFS=',' read -r no machine omni_id omni_account model_path hf_token \
                        extract_status last_update model_status pre_check \
                        current_score valid_status valid_time score db_bench alfworld; do
     csv_line_num=$((csv_line_num + 1))
@@ -175,22 +181,23 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
     pipeline_start=$(date +%s)
 
     # ────────────────────────────────────────────
-    # パイプライン全体をサブシェルで実行し timeout で制限
+    # パイプラインをサブシェルで実行し timeout で制限
+    # タスクサーバーは外部で起動済みの前提
     # ────────────────────────────────────────────
     set +e
     timeout --kill-after=60 "${PIPELINE_TIMEOUT_SEC}" bash -c '
         set -e
-        SCRIPT_DIR="$1"; model_path="$2"; hf_token="$3"; latest_output_file="$4"
-        prefix="$5"; step1_script="$6"; results_base="$7"
+        SCRIPT_DIR="$1"; APP_DIR="$2"; model_path="$3"; hf_token="$4"
+        latest_output_file="$5"; prefix="$6"; step1_script="$7"; results_base="$8"
 
-        # Step 1: vLLM 立ち上げ (docker compose)
+        # 1. vLLM モデル切替 (停止 → キャッシュ削除 → .env更新 → 起動)
         bash "$step1_script" "$model_path" "$hf_token"
 
-        # Step 2: 評価実行
-        bash "${SCRIPT_DIR}/step2_evaluate.sh"
+        # 2. 評価実行 (run_evaluate.py → src.assigner)
+        cd "$APP_DIR"
+        python3 "${SCRIPT_DIR}/run_evaluate.py" -c configs/assignments/default.yaml -r
 
-        # Step 3: analysis.py 実行
-        APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+        # 3. 結果集計 (analysis.py)
         latest_output="$(ls -1dt "${APP_DIR}/outputs/"*/ 2>/dev/null | head -1)"
         if [ -z "$latest_output" ]; then
             echo "ERROR: no output directory found" >&2
@@ -198,12 +205,12 @@ while IFS=',' read -r no omni_id omni_account model_path hf_token \
         fi
         bash "${SCRIPT_DIR}/step3_analysis.sh" "$latest_output"
 
-        # Step 4: 評価コンテンツの整理
+        # 4. 結果整理 ({OmniID}_{OmniAccount}_ プレフィックス)
         bash "${SCRIPT_DIR}/step4_organize.sh" "$prefix" "$latest_output" "$results_base"
 
         # latest_output パスを親に伝える
         echo "$latest_output" > "$latest_output_file"
-    ' _ "$SCRIPT_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$STEP1_SCRIPT" "$RESULTS_BASE"
+    ' _ "$SCRIPT_DIR" "$APP_DIR" "$model_path" "$hf_token" "/tmp/latest_output_$$" "$prefix" "$STEP1_SCRIPT" "$RESULTS_BASE"
 
     pipeline_exit=$?
     set -e
@@ -251,9 +258,9 @@ echo ""
 echo "============================================"
 echo " Evaluation 完了"
 echo "============================================"
-echo " 合計:   ${total_count}"
-echo " 成功:   ${finish_count}"
-echo " 失敗:   ${error_count}"
+echo " 合計:     ${total_count}"
+echo " 成功:     ${finish_count}"
+echo " 失敗:     ${error_count}"
 echo " スキップ: ${skip_count}"
 echo ""
 echo " 結果: ${RESULTS_BASE}/"
