@@ -115,6 +115,7 @@ bash eval/run-task-server.sh
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
+newgrp docker          # 評価スクリプトが docker コマンドを使うため必須
 source .venv/bin/activate
 python3 eval/runbook.py eval/models.csv
 ```
