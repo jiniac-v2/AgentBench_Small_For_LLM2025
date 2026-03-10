@@ -465,6 +465,15 @@ if __name__ == "__main__":
 
     loader = ConfigLoader()
     config_ = loader.load_from(args.config)
+
+    # api_agents.yaml の model: "${VLLM_MODEL}" を実際のモデル名に置換
+    vllm_model = os.environ.get("VLLM_MODEL", "")
+    if vllm_model:
+        for agent_cfg in config_.get("definition", {}).get("agent", {}).values():
+            body = agent_cfg.get("parameters", {}).get("body", {})
+            if isinstance(body.get("model"), str) and "${VLLM_MODEL}" in body["model"]:
+                body["model"] = vllm_model
+
     value = AssignmentConfig.parse_obj(config_)
     value = AssignmentConfig.post_validate(value)
     v = value.dict()
