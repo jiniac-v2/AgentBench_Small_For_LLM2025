@@ -15,6 +15,8 @@ mysql-connector-python>=8.0.33
 docker>=6.1.2
 
 # ALFWorld
+# NOTE: alfworld depends on spacy 3.2.x which requires Cython <3.0 to build
+Cython<3.0
 gym==0.24.0
 alfworld==0.4.2
 textworld==1.7.0
