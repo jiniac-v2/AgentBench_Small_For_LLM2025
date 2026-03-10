@@ -2,21 +2,21 @@
 """
 評価ラッパースクリプト
 
-src/assigner.py を呼ぶ前に以下を行う:
+Assigner を呼ぶ前に以下を行う:
   1. vLLM / タスクサーバーの疎通確認
   2. VLLM_MODEL の自動検出 (.env → vLLM /v1/models)
   3. config 内の ${VLLM_MODEL} を実際のモデル名に置換
-  4. 書き換え済み config を一時ファイルに保存して src.assigner へ渡す
+  4. 同一プロセス内で Assigner を直接実行
 
-src/ 配下のコードは一切変更しない。
+subprocess を使わないので、runbook.py (Prefect) の capture_output=True
+環境でもパイプバッファのデッドロックが発生しない。
 """
 import argparse
 import json
 import os
+import re
 import socket
-import subprocess
 import sys
-import tempfile
 import urllib.request
 
 
@@ -77,7 +77,6 @@ def _auto_detect_vllm_model(vllm_url="http://localhost:8000"):
 def _replace_env_vars(obj):
     """dict/list 内の文字列から ${VAR} を os.environ で置換する (再帰)"""
     if isinstance(obj, str):
-        import re
         def _repl(m):
             var = m.group(1)
             val = os.environ.get(var)
@@ -145,46 +144,35 @@ def main():
 
     _info(f"VLLM_MODEL={os.environ['VLLM_MODEL']}")
 
-    # ── 3. config 読み込み → ${VLLM_MODEL} 置換 → 一時ファイルに書き出し ──
+    # ── 3. config 読み込み → ${VLLM_MODEL} 置換 ──
 
-    # ConfigLoader を使って import/overwrite/default を全て解決した dict を得る
     sys.path.insert(0, ROOT_DIR)
+    os.chdir(ROOT_DIR)
+
     from src.configs import ConfigLoader
+    from src.typings import AssignmentConfig
+    from src.assigner import Assigner, std_out_err_redirect_tqdm
 
     loader = ConfigLoader()
-    config = loader.load_from(os.path.join(ROOT_DIR, args.config))
+    config_path = os.path.join(ROOT_DIR, args.config)
+    config = loader.load_from(config_path)
 
     # 環境変数の展開
     config = _replace_env_vars(config)
 
-    # 一時ファイルに書き出し (assigner が読める形式)
-    # import 等は既に解決済みなので、フラットな YAML で良い
-    import yaml
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".yaml", prefix="agentbench_eval_")
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+    _info("config 内の環境変数を展開済み")
 
-        _info(f"解決済み config: {tmp_path}")
+    # ── 4. Assigner を直接実行 (subprocess を使わない) ──
 
-        # ── 4. src.assigner を実行 ──
+    _info("AssignmentConfig パース...")
+    value = AssignmentConfig.parse_obj(config)
+    value = AssignmentConfig.post_validate(value)
 
-        cmd = [
-            sys.executable, "-m", "src.assigner",
-            "-c", tmp_path,
-        ]
-        if args.retry:
-            cmd.append("-r")
+    _info("Assigner 開始")
+    with std_out_err_redirect_tqdm() as orig_stdout:
+        Assigner(value, args.retry).start(tqdm_out=orig_stdout)
 
-        _info(f"実行: {' '.join(cmd)}")
-        result = subprocess.run(cmd, cwd=ROOT_DIR)
-        sys.exit(result.returncode)
-    finally:
-        # 一時ファイルの掃除
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+    _info("評価完了")
 
 
 if __name__ == "__main__":

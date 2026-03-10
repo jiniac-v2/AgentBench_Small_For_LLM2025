@@ -181,12 +181,8 @@ def step1_start_vllm(model_path: str, read_key: str) -> None:
     logger.info(f"vLLM 起動: {model_path}")
     result = subprocess.run(
         ["bash", str(SCRIPT_DIR / "step1_start_vllm.sh"), model_path, read_key],
-        capture_output=True,
-        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         raise RuntimeError(f"vLLM 起動失敗 (exit={result.returncode})")
 
 
@@ -197,12 +193,8 @@ def step2_evaluate() -> None:
     logger.info("評価実行開始")
     result = subprocess.run(
         ["bash", str(SCRIPT_DIR / "step2_evaluate.sh")],
-        capture_output=True,
-        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         raise RuntimeError(f"評価失敗 (exit={result.returncode})")
 
 
@@ -213,12 +205,8 @@ def step3_analysis(output_dir: str) -> None:
     logger.info(f"分析実行: {output_dir}")
     result = subprocess.run(
         ["bash", str(SCRIPT_DIR / "step3_analysis.sh"), output_dir],
-        capture_output=True,
-        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         raise RuntimeError(f"分析失敗 (exit={result.returncode})")
 
 
@@ -235,12 +223,8 @@ def step4_organize(prefix: str, output_dir: str, results_base: str) -> None:
             output_dir,
             results_base,
         ],
-        capture_output=True,
-        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         raise RuntimeError(f"結果整理失敗 (exit={result.returncode})")
 
 
