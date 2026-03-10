@@ -104,6 +104,7 @@ prefect server start
 
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
+newgrp docker          # タスクワーカー (dbbench) が docker を使うため必須
 bash eval/run-task-server.sh
 ```
 
