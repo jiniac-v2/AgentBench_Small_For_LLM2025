@@ -204,6 +204,14 @@ alfworld ランタイムデータのシンボリックリンクが未作成、�
 bash ~/AgentBench_Small_For_LLM2025/infra/wsl/setup2.sh
 ```
 
+**PermissionError の場合**: シンボリックリンクが `/root/.cache/alfworld/` を指している可能性があります
+（`setup2.sh` を `sudo` で実行した場合に発生）。確認方法:
+
+```bash
+ls -la data/alfworld/logic
+# /root/ 配下を指している → setup2.sh を sudo なしで再実行
+```
+
 ### vLLM 接続エラー
 
 ```bash
