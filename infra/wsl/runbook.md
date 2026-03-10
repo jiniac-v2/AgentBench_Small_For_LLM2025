@@ -109,7 +109,7 @@ cat eval/models.csv
 docker compose ps
 
 # ログの確認
-docker compose logs --tail 50 vllm
+docker compose logs --tail=50 vllm
 
 # ログをリアルタイムで追跡
 docker compose logs -f vllm

@@ -100,7 +100,7 @@ gcloud compute scp --recurse \
   --zone YOUR_ZONE --project YOUR_PROJECT_ID
 ```
 
-> VSCode の方は outputs 配下のデータを DL でいいです
+> VSCode Remote SSH を使っている場合は、エクスプローラーから outputs 配下を直接ダウンロードできます。
 
 ---
 

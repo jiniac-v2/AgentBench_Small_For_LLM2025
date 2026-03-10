@@ -16,7 +16,7 @@ gcloud auth login
 gcloud projects list
 gcloud config set project YOUR_PROJECT_ID
 ```
-> 事前にプロジェクトを作成しておいてください
+> 事前にプロジェクトを作成しておいてください。
 
 ## Step 2: 請求先アカウントの確認
 
@@ -184,13 +184,13 @@ VM 上で以下を実行します。**方法 A (既存 VM) でも方法 B (Terra
 ```bash
 cd ~/AgentBench_Small_For_LLM2025
 
-# (1) Docker / NVIDIA / Python 依存 の用意(内部で必要な箇所のみ sudo)
+# (1) Docker / NVIDIA / Python 依存の用意 (内部で必要な箇所のみ sudo)
 bash infra/gcp/setup1.sh
 
 # docker グループ反映のため再ログイン
 exit
 gcloud compute ssh agentbench-eval --zone YOUR_ZONE --project YOUR_PROJECT_ID
-# または以下コマンド(入り直し面倒なのでこちらを推奨)
+# または以下コマンド (再ログインが面倒な場合はこちらを推奨)
 newgrp docker
 
 # (2) ALFWorld データ / .env / Docker イメージ pull の用意

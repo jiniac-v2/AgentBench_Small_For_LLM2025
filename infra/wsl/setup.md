@@ -194,7 +194,7 @@ docker run --rm -d --name vllm \
   vllm/vllm-openai:v0.13.0 \
   --model "Qwen/Qwen2.5-7B-Instruct" \
   --max-model-len 8192 \
-  --gpu-memory-utilization 0.95
+  --gpu-memory-utilization 0.90
 ```
 
 ---
@@ -240,7 +240,7 @@ WSL 内のファイルシステム (`/home/...`) は Windows のファイルシ�
 | RTX 5090 | 32GB | 〜14B (余裕あり) |
 | A100 / H100 | 40-80GB | 〜70B |
 
-> `gpu-memory-utilization=0.95` はデフォルトで VRAM の 95% を使います。
+> `gpu-memory-utilization=0.90` はデフォルトで VRAM の 90% を使います。
 > OOM が出る場合は `VLLM_GPU_MEMORY_UTILIZATION=0.85` に下げるか、`VLLM_MAX_MODEL_LEN` を小さくしてください。
 
 ---
