@@ -40,11 +40,11 @@ import os
 import subprocess
 import sys
 import time
+import urllib.request
 from datetime import timedelta
 from pathlib import Path
 
 from prefect import flow, get_run_logger, task
-from prefect.states import Cancelled
 
 # ── 定数 ────────────────────────────────────────────
 
@@ -57,8 +57,6 @@ APP_DIR = SCRIPT_DIR.parent
 
 def _send_slack(webhook_url: str, message: dict) -> None:
     """Slack Incoming Webhook にメッセージを送信する (requests不要版)."""
-    import urllib.request
-
     req = urllib.request.Request(
         webhook_url,
         data=json.dumps(message).encode("utf-8"),
@@ -291,6 +289,18 @@ def run_evaluation(csv_file: str | None = None) -> None:
 
     if not Path(csv_path).exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
+
+    # タスクサーバーの起動チェック
+    logger.info("タスクサーバーの起動を確認中...")
+    try:
+        urllib.request.urlopen("http://localhost:5000/api", timeout=3)
+        logger.info("タスクサーバー: OK")
+    except Exception:
+        raise RuntimeError(
+            "タスクサーバー (port 5000) が起動していません。\n"
+            "  別ターミナルで以下を実行してください:\n"
+            "    bash eval/run-task-server.sh"
+        )
 
     # CSV 読み込み (DictReader で列名ベース)
     enc = detect_encoding(csv_path)
