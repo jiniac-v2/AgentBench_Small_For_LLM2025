@@ -43,6 +43,10 @@ echo "============================================"
 echo "[Step1] 既存 vLLM コンテナを停止..."
 cd "${APP_DIR}"
 docker compose down 2>/dev/null || true
+
+# 不要な Docker リソース (停止コンテナ・dangling image・build cache) を削除
+echo "[Step1] Docker 不要リソースを削除..."
+docker system prune -f 2>/dev/null || true
 sleep 2
 
 # ── 2. GPU メモリ解放 ──

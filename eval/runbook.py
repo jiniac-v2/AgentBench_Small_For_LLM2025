@@ -37,6 +37,7 @@ Usage:
 import csv
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -49,6 +50,7 @@ from prefect import flow, get_run_logger, task
 # ── 定数 ────────────────────────────────────────────
 
 PIPELINE_TIMEOUT_SEC = 7200  # 2h per model
+DISK_MIN_GB = 20  # モデル評価に必要な最低空き容量 (GB)
 SCRIPT_DIR = Path(__file__).resolve().parent
 APP_DIR = SCRIPT_DIR.parent
 
@@ -154,6 +156,13 @@ def extract_scores(output_dir: str | None) -> tuple[str, str, str]:
     except Exception:
         pass
     return ("", "", "")
+
+
+def check_disk_space(min_gb: int = DISK_MIN_GB) -> tuple[bool, float]:
+    """ディスク空き容量を確認する. (ok, available_gb) を返す."""
+    usage = shutil.disk_usage("/home")
+    avail_gb = usage.free / (1024 ** 3)
+    return avail_gb >= min_gb, round(avail_gb, 1)
 
 
 def update_csv_row(csv_path: str, row_index: int, row: dict, fieldnames: list[str]) -> None:
@@ -353,7 +362,23 @@ def run_evaluation(csv_file: str | None = None) -> None:
             skip_count += 1
             continue
 
-        logger.info(f"[{total_count}] {label} Model: {model_path}")
+        # ディスク空き容量チェック
+        disk_ok, avail_gb = check_disk_space()
+        if not disk_ok:
+            logger.error(
+                f"[DISK] {label}: 空き容量不足 ({avail_gb}GB < {DISK_MIN_GB}GB) -- スキップ"
+            )
+            error_count += 1
+            notify_slack(
+                webhook_url,
+                title=f"ディスク容量不足: {label}",
+                status=f"空き {avail_gb}GB < 閾値 {DISK_MIN_GB}GB -- 以降のモデルをスキップします",
+                fields={"Model": model_path},
+                color="#ff0000",
+            )
+            break  # これ以降のモデルも空き不足なので中断
+
+        logger.info(f"[{total_count}] {label} Model: {model_path} (Disk: {avail_gb}GB free)")
 
         notify_slack(
             webhook_url,
