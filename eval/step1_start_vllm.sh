@@ -10,7 +10,7 @@ set -e
 # 処理:
 #   1. docker compose で既存 vLLM コンテナを停止・削除
 #   2. GPU メモリを解放
-#   3. 前モデルの推論キャッシュをクリア (HFモデルキャッシュは保持)
+#   3. 前モデルのキャッシュをクリア (推論キャッシュ + HFモデルキャッシュ)
 #   4. .env / api_agents.yaml を更新
 #   5. docker compose up -d で vLLM を起動し、起動完了を待機
 #
@@ -58,11 +58,21 @@ if command -v nvidia-smi &>/dev/null; then
     fi
 fi
 
-# ── 3. キャッシュクリア (推論キャッシュのみ、HFモデルキャッシュは保持) ──
+# ── 3. キャッシュクリア (推論キャッシュ + HF モデルキャッシュ) ──
 
 echo "[Step1] 推論キャッシュをクリア..."
 rm -rf /tmp/vllm_cache 2>/dev/null || true
 rm -rf /tmp/ray 2>/dev/null || true
+
+# HF モデルキャッシュを削除してディスク枯渇を防止
+# (各モデルは毎回ダウンロードされるが、ディスク 100% でパイプライン全停止するより安全)
+HF_CACHE="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
+if [ -d "${HF_CACHE}/hub" ]; then
+    cache_size=$(du -sh "${HF_CACHE}/hub" 2>/dev/null | cut -f1)
+    echo "[Step1] HF モデルキャッシュを削除 (${cache_size})..."
+    rm -rf "${HF_CACHE}/hub"
+    echo "[Step1] HF モデルキャッシュ削除完了"
+fi
 
 # ── 4. .env / agent config 更新 ──
 
