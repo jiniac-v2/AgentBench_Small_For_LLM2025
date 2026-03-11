@@ -66,12 +66,18 @@ rm -rf /tmp/ray 2>/dev/null || true
 
 # HF モデルキャッシュを削除してディスク枯渇を防止
 # (各モデルは毎回ダウンロードされるが、ディスク 100% でパイプライン全停止するより安全)
+# Note: vLLM コンテナが root でキャッシュを書くため sudo が必要
 HF_CACHE="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
 if [ -d "${HF_CACHE}/hub" ]; then
     cache_size=$(du -sh "${HF_CACHE}/hub" 2>/dev/null | cut -f1)
     echo "[Step1] HF モデルキャッシュを削除 (${cache_size})..."
-    rm -rf "${HF_CACHE}/hub"
-    echo "[Step1] HF モデルキャッシュ削除完了"
+    if rm -rf "${HF_CACHE}/hub" 2>/dev/null; then
+        echo "[Step1] HF モデルキャッシュ削除完了"
+    else
+        echo "[Step1] 権限不足のため sudo で削除..."
+        sudo rm -rf "${HF_CACHE}/hub"
+        echo "[Step1] HF モデルキャッシュ削除完了 (sudo)"
+    fi
 fi
 
 # ── 4. .env / agent config 更新 ──
