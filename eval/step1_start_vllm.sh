@@ -8,11 +8,10 @@ set -e
 #   bash eval/step1_start_vllm.sh <model_path> <hf_token> [max_wait_sec]
 #
 # 処理:
-#   1. docker compose で既存 vLLM コンテナを停止・削除
-#   2. GPU メモリを解放
-#   3. 前モデルのキャッシュをクリア (推論キャッシュ + HFモデルキャッシュ)
-#   4. .env / api_agents.yaml を更新
-#   5. docker compose up -d で vLLM を起動し、起動完了を待機
+#   1. .env / api_agents.yaml を更新
+#   2. docker compose up -d で vLLM を起動し、起動完了を待機
+#
+# 事前に step0_cleanup.sh でコンテナ停止・キャッシュ削除を行うこと。
 #
 # Exit code:
 #   0 = 起動成功, 1 = 起動失敗
@@ -20,7 +19,7 @@ set -e
 
 VLLM_MODEL="$1"
 HF_TOKEN="$2"
-MAX_WAIT="${3:-600}"  # デフォルト10分 (大きいモデルのダウンロード考慮)
+MAX_WAIT="${3:-900}"  # デフォルト15分
 
 if [ -z "$VLLM_MODEL" ]; then
     echo "ERROR: Usage: $0 <model_path> <hf_token> [max_wait_sec]"
@@ -38,53 +37,7 @@ echo " [Step1] vLLM 立ち上げ (docker compose)"
 echo " Model: ${VLLM_MODEL}"
 echo "============================================"
 
-# ── 1. 既存 vLLM コンテナを停止 ──
-
-echo "[Step1] 既存 vLLM コンテナを停止..."
-cd "${APP_DIR}"
-docker compose down 2>/dev/null || true
-
-# 不要な Docker リソース (停止コンテナ・dangling image・build cache) を削除
-echo "[Step1] Docker 不要リソースを削除..."
-docker system prune -f 2>/dev/null || true
-sleep 2
-
-# ── 2. GPU メモリ解放 ──
-
-echo "[Step1] GPU メモリを解放..."
-if command -v nvidia-smi &>/dev/null; then
-    gpu_procs=$(nvidia-smi --query-compute-apps=pid,name --format=csv,noheader 2>/dev/null || true)
-    if [ -n "$gpu_procs" ]; then
-        echo "[Step1] WARNING: GPU を使用中のプロセスがあります:"
-        echo "$gpu_procs"
-    else
-        echo "[Step1] GPU メモリ: クリア"
-    fi
-fi
-
-# ── 3. キャッシュクリア (推論キャッシュ + HF モデルキャッシュ) ──
-
-echo "[Step1] 推論キャッシュをクリア..."
-rm -rf /tmp/vllm_cache 2>/dev/null || true
-rm -rf /tmp/ray 2>/dev/null || true
-
-# HF モデルキャッシュを削除してディスク枯渇を防止
-# (各モデルは毎回ダウンロードされるが、ディスク 100% でパイプライン全停止するより安全)
-# Note: vLLM コンテナが root でキャッシュを書くため sudo が必要
-HF_CACHE="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
-if [ -d "${HF_CACHE}/hub" ]; then
-    cache_size=$(du -sh "${HF_CACHE}/hub" 2>/dev/null | cut -f1)
-    echo "[Step1] HF モデルキャッシュを削除 (${cache_size})..."
-    if rm -rf "${HF_CACHE}/hub" 2>/dev/null; then
-        echo "[Step1] HF モデルキャッシュ削除完了"
-    else
-        echo "[Step1] 権限不足のため sudo で削除..."
-        sudo rm -rf "${HF_CACHE}/hub"
-        echo "[Step1] HF モデルキャッシュ削除完了 (sudo)"
-    fi
-fi
-
-# ── 4. .env / agent config 更新 ──
+# ── 1. .env / agent config 更新 ──
 
 echo "[Step1] .env を更新..."
 cat > "${APP_DIR}/.env" <<EOF
@@ -98,7 +51,7 @@ echo "[Step1] api_agents.yaml を更新..."
 sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" \
     "${APP_DIR}/configs/agents/api_agents.yaml"
 
-# ── 5. vLLM 起動 + 起動待ち ──
+# ── 2. vLLM 起動 + 起動待ち ──
 
 echo "[Step1] vLLM を起動 (docker compose up -d)..."
 cd "${APP_DIR}"

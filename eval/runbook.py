@@ -8,7 +8,7 @@ CSV に列挙された複数モデルを連続的に評価するオーケスト�
 Features:
   - Prefect UI でリアルタイム進捗確認 (localhost:4200)
   - Slack Webhook で完了/エラー/タイムアウト通知
-  - モデルごとのタイムアウト制御 (vLLM起動後から2h)
+  - モデルごとのタイムアウト制御 (Step0の掃除を除く Step1〜4 に2h)
   - CSV 自動更新 (スコア・ステータス・所要時間)
 
 CSV format (ヘッダー行必須):
@@ -18,7 +18,7 @@ CSV format (ヘッダー行必須):
   - 列の順序は任意 (列名で対応)
   - PreCheck が "OK" の行のみ評価対象
   - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
-  - 制限時間: 1モデルあたり2時間 (vLLMへのモデルロード完了後からカウント)
+  - 制限時間: 1モデルあたり2時間 (Step0の掃除を除く、vLLM起動からカウント)
 
 Usage:
   # Prefect サーバー起動 (別ターミナル)
@@ -181,6 +181,18 @@ def update_csv_row(csv_path: str, row_index: int, row: dict, fieldnames: list[st
 # ── Prefect タスク ──────────────────────────────────
 
 
+@task(name="Step0: クリーンアップ", log_prints=True)
+def step0_cleanup() -> None:
+    """コンテナ停止・キャッシュ削除等の事前クリーンアップ (タイムアウト対象外)."""
+    logger = get_run_logger()
+    logger.info("事前クリーンアップ開始")
+    result = subprocess.run(
+        ["bash", str(SCRIPT_DIR / "step0_cleanup.sh")],
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"クリーンアップ失敗 (exit={result.returncode})")
+
+
 @task(name="Step1: vLLM 立ち上げ", log_prints=True)
 def step1_start_vllm(model_path: str, read_key: str) -> None:
     """vLLM コンテナを起動する."""
@@ -248,16 +260,23 @@ def step4_organize(prefix: str, output_dir: str) -> None:
     log_prints=True,
     timeout_seconds=PIPELINE_TIMEOUT_SEC,
 )
-def evaluate_model(prefix: str) -> tuple[str, str, str]:
-    """1モデルの評価パイプライン (Step2〜4).
+def evaluate_model(
+    model_path: str,
+    hf_token: str,
+    prefix: str,
+) -> tuple[str, str, str]:
+    """1モデルの評価パイプライン (Step1〜4).
 
     タイムアウト (2h) はこのフローに適用される。
-    Step1 (キャッシュ削除・ダウンロード・vLLM起動) は呼び出し元で
+    Step0 (キャッシュ削除・Docker掃除) は呼び出し元で
     タイムアウト対象外として先に実行される。
 
     Args:
         prefix: '{OmniID}_{OmniAccount}_' 形式のプレフィックス
     """
+    # Step 1: vLLM 起動 (ダウンロード + ロード含む)
+    step1_start_vllm(model_path, hf_token)
+
     # Step 2
     step2_evaluate()
 
@@ -394,12 +413,14 @@ def run_evaluation(csv_file: str | None = None) -> None:
             update_csv_row(csv_path, row_index, row, fieldnames)
 
         try:
-            # Step 1: vLLM 起動 (キャッシュ削除・ダウンロード含む、タイムアウト対象外)
-            step1_start_vllm(model_path, hf_token)
+            # Step 0: 事前クリーンアップ (タイムアウト対象外)
+            step0_cleanup()
 
-            # Step 2-4: ここからタイムアウト計測開始
+            # Step 1-4: ここからタイムアウト計測開始
             pipeline_start = time.time()
             score_val, db_val, alf_val = evaluate_model(
+                model_path=model_path,
+                hf_token=hf_token,
                 prefix=prefix,
             )
 
