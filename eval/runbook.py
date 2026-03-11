@@ -8,7 +8,7 @@ CSV に列挙された複数モデルを連続的に評価するオーケスト�
 Features:
   - Prefect UI でリアルタイム進捗確認 (localhost:4200)
   - Slack Webhook で完了/エラー/タイムアウト通知
-  - モデルごとのタイムアウト制御 (デフォルト 2h20m)
+  - モデルごとのタイムアウト制御 (vLLM起動後から2h)
   - CSV 自動更新 (スコア・ステータス・所要時間)
 
 CSV format (ヘッダー行必須):
@@ -18,7 +18,7 @@ CSV format (ヘッダー行必須):
   - 列の順序は任意 (列名で対応)
   - PreCheck が "OK" の行のみ評価対象
   - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
-  - 制限時間: 1モデルあたり2時間
+  - 制限時間: 1モデルあたり2時間 (vLLMへのモデルロード完了後からカウント)
 
 Usage:
   # Prefect サーバー起動 (別ターミナル)
@@ -248,19 +248,16 @@ def step4_organize(prefix: str, output_dir: str) -> None:
     log_prints=True,
     timeout_seconds=PIPELINE_TIMEOUT_SEC,
 )
-def evaluate_model(
-    model_path: str,
-    hf_token: str,
-    prefix: str,
-) -> tuple[str, str, str]:
-    """1モデルの評価パイプライン (Step1〜4).
+def evaluate_model(prefix: str) -> tuple[str, str, str]:
+    """1モデルの評価パイプライン (Step2〜4).
+
+    タイムアウト (2h) はこのフローに適用される。
+    Step1 (キャッシュ削除・ダウンロード・vLLM起動) は呼び出し元で
+    タイムアウト対象外として先に実行される。
 
     Args:
         prefix: '{OmniID}_{OmniAccount}_' 形式のプレフィックス
     """
-    # Step 1
-    step1_start_vllm(model_path, hf_token)
-
     # Step 2
     step2_evaluate()
 
@@ -387,8 +384,6 @@ def run_evaluation(csv_file: str | None = None) -> None:
             color="#439FE0",
         )
 
-        pipeline_start = time.time()
-
         def _update_row(v_status, v_time, score="", db="", alf=""):
             """現在の行データを更新して CSV に書き戻す."""
             row["Valid_Status"] = v_status
@@ -399,9 +394,12 @@ def run_evaluation(csv_file: str | None = None) -> None:
             update_csv_row(csv_path, row_index, row, fieldnames)
 
         try:
+            # Step 1: vLLM 起動 (キャッシュ削除・ダウンロード含む、タイムアウト対象外)
+            step1_start_vllm(model_path, hf_token)
+
+            # Step 2-4: ここからタイムアウト計測開始
+            pipeline_start = time.time()
             score_val, db_val, alf_val = evaluate_model(
-                model_path=model_path,
-                hf_token=hf_token,
                 prefix=prefix,
             )
 
