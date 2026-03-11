@@ -19,7 +19,7 @@ set -e
 
 VLLM_MODEL="$1"
 HF_TOKEN="$2"
-MAX_WAIT="${3:-900}"  # デフォルト15分
+MAX_WAIT="${3:-3600}"  # デフォルト1時間
 
 if [ -z "$VLLM_MODEL" ]; then
     echo "ERROR: Usage: $0 <model_path> <hf_token> [max_wait_sec]"

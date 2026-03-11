@@ -8,7 +8,7 @@ CSV に列挙された複数モデルを連続的に評価するオーケスト�
 Features:
   - Prefect UI でリアルタイム進捗確認 (localhost:4200)
   - Slack Webhook で完了/エラー/タイムアウト通知
-  - モデルごとのタイムアウト制御 (Step0の掃除を除く Step1〜4 に2h)
+  - モデルごとのタイムアウト制御 (Step0の掃除を除く Step1〜4 に3h)
   - CSV 自動更新 (スコア・ステータス・所要時間)
 
 CSV format (ヘッダー行必須):
@@ -18,7 +18,7 @@ CSV format (ヘッダー行必須):
   - 列の順序は任意 (列名で対応)
   - PreCheck が "OK" の行のみ評価対象
   - 結果ディレクトリのプレフィックス: {OmniID}_{OmniAccount}_
-  - 制限時間: 1モデルあたり2時間 (Step0の掃除を除く、vLLM起動からカウント)
+  - 制限時間: 1モデルあたり3時間 (Step0の掃除を除く、vLLM起動からカウント)
 
 Usage:
   # Prefect サーバー起動 (別ターミナル)
@@ -49,7 +49,7 @@ from prefect import flow, get_run_logger, task
 
 # ── 定数 ────────────────────────────────────────────
 
-PIPELINE_TIMEOUT_SEC = 7200  # 2h per model
+PIPELINE_TIMEOUT_SEC = 10800  # 3h per model
 DISK_MIN_GB = 20  # モデル評価に必要な最低空き容量 (GB)
 SCRIPT_DIR = Path(__file__).resolve().parent
 APP_DIR = SCRIPT_DIR.parent
