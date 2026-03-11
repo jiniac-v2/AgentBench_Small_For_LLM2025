@@ -51,6 +51,41 @@ echo "[Step1] api_agents.yaml を更新..."
 sed -i "s|^\([[:space:]]*\)model:.*|\1model: \"${VLLM_MODEL}\"|" \
     "${APP_DIR}/configs/agents/api_agents.yaml"
 
+# ── ログからエラー原因を診断して終了 ──
+
+diagnose_and_exit() {
+    local trigger="$1"  # "crashed" or "timeout"
+    local logs
+    logs=$(docker compose logs --tail=100 vllm 2>/dev/null || echo "")
+
+    echo "[Step1] 直近のログ:"
+    docker compose logs --tail=30 vllm 2>/dev/null || true
+
+    local diagnosis="UNKNOWN"
+    if echo "$logs" | grep -qiE "repository not found|model .* does not exist|404.*not found|does not appear to have.*config"; then
+        diagnosis="MODEL_NOT_FOUND"
+    elif echo "$logs" | grep -qiE "401|403|unauthorized|access denied|gated repo|token.*invalid|Invalid username or password"; then
+        diagnosis="AUTH_ERROR"
+    elif echo "$logs" | grep -qiE "CUDA out of memory|torch.cuda.OutOfMemoryError|OOM|Cannot allocate memory|not enough memory"; then
+        diagnosis="OOM"
+    elif echo "$logs" | grep -qiE "max_model_len.*is too high|model.*max.*is larger|exceeds.*max_position_embeddings|context length"; then
+        diagnosis="CONTEXT_TOO_LONG"
+    elif echo "$logs" | grep -qiE "CUDA error|NCCL error|cuda.*not available|no CUDA GPUs|nvidia.*error|GPU.*not found"; then
+        diagnosis="CUDA_ERROR"
+    elif echo "$logs" | grep -qiE "ConnectionError|ConnectionResetError|DownloadError|Name or service not known|Temporary failure in name resolution|Could not resolve host"; then
+        diagnosis="DOWNLOAD_ERROR"
+    elif [ "$trigger" = "timeout" ]; then
+        diagnosis="TIMEOUT"
+    else
+        diagnosis="CONTAINER_CRASH"
+    fi
+
+    echo ""
+    echo "[Step1] ===== 診断結果: ${diagnosis} ====="
+    echo "[Step1] DIAGNOSIS=${diagnosis}"
+    exit 1
+}
+
 # ── 2. vLLM 起動 + 起動待ち ──
 
 echo "[Step1] vLLM を起動 (docker compose up -d)..."
@@ -82,9 +117,8 @@ print('not found')
 " 2>/dev/null || echo "unknown")
 
     if [ "$container_status" = "exited" ] || [ "$container_status" = "dead" ]; then
-        echo "[Step1] ERROR: vLLM コンテナが異常終了しました。ログ:"
-        docker compose logs --tail=30 vllm
-        exit 1
+        echo "[Step1] ERROR: vLLM コンテナが異常終了しました。"
+        diagnose_and_exit "crashed"
     fi
 
     sleep 10
@@ -93,6 +127,4 @@ print('not found')
 done
 
 echo "[Step1] ERROR: vLLM が ${MAX_WAIT}s 以内に起動しませんでした"
-echo "[Step1] 直近のログ:"
-docker compose logs --tail=30 vllm
-exit 1
+diagnose_and_exit "timeout"

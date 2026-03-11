@@ -54,18 +54,26 @@ echo "[Step0] 推論キャッシュをクリア..."
 rm -rf /tmp/vllm_cache 2>/dev/null || true
 rm -rf /tmp/ray 2>/dev/null || true
 
-# HF モデルキャッシュを削除してディスク枯渇を防止
+# HF モデルキャッシュ: ディスク空きが少ない場合のみ削除
 # Note: vLLM コンテナが root でキャッシュを書くため sudo が必要な場合がある
+# キャッシュを残すことでダウンロード時間を短縮できる
 HF_CACHE="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
+DISK_MIN_GB="${DISK_MIN_GB:-20}"
+avail_gb=$(df --output=avail /home 2>/dev/null | tail -1 | awk '{printf "%.0f", $1/1024/1024}')
+
 if [ -d "${HF_CACHE}/hub" ]; then
     cache_size=$(du -sh "${HF_CACHE}/hub" 2>/dev/null | cut -f1)
-    echo "[Step0] HF モデルキャッシュを削除 (${cache_size})..."
-    if rm -rf "${HF_CACHE}/hub" 2>/dev/null; then
-        echo "[Step0] HF モデルキャッシュ削除完了"
+    if [ "${avail_gb}" -lt "${DISK_MIN_GB}" ]; then
+        echo "[Step0] ディスク空き不足 (${avail_gb}GB < ${DISK_MIN_GB}GB) → HF キャッシュを削除 (${cache_size})..."
+        if rm -rf "${HF_CACHE}/hub" 2>/dev/null; then
+            echo "[Step0] HF モデルキャッシュ削除完了"
+        else
+            echo "[Step0] 権限不足のため sudo で削除..."
+            sudo rm -rf "${HF_CACHE}/hub"
+            echo "[Step0] HF モデルキャッシュ削除完了 (sudo)"
+        fi
     else
-        echo "[Step0] 権限不足のため sudo で削除..."
-        sudo rm -rf "${HF_CACHE}/hub"
-        echo "[Step0] HF モデルキャッシュ削除完了 (sudo)"
+        echo "[Step0] ディスク空き十分 (${avail_gb}GB) → HF キャッシュを保持 (${cache_size})"
     fi
 fi
 

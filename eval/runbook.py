@@ -200,9 +200,21 @@ def step1_start_vllm(model_path: str, read_key: str) -> None:
     logger.info(f"vLLM 起動: {model_path}")
     result = subprocess.run(
         ["bash", str(SCRIPT_DIR / "step1_start_vllm.sh"), model_path, read_key],
+        capture_output=True,
+        text=True,
     )
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
     if result.returncode != 0:
-        raise RuntimeError(f"vLLM 起動失敗 (exit={result.returncode})")
+        # step1_start_vllm.sh が出力する DIAGNOSIS=XXX を抽出
+        diagnosis = "UNKNOWN"
+        for line in (result.stdout or "").splitlines():
+            if line.strip().startswith("[Step1] DIAGNOSIS="):
+                diagnosis = line.strip().split("=", 1)[1]
+                break
+        raise RuntimeError(f"vLLM 起動失敗 [{diagnosis}] (exit={result.returncode})")
 
 
 @task(name="Step2: 評価実行", log_prints=True)
@@ -463,7 +475,11 @@ def run_evaluation(csv_file: str | None = None) -> None:
             error_type = "Valid-Error"
             error_msg = str(e)
             if "vLLM" in error_msg:
-                error_type = "vLLM-Error"
+                # 診断結果を抽出: "vLLM 起動失敗 [AUTH_ERROR]" → "vLLM-Error(AUTH_ERROR)"
+                import re
+                diag_match = re.search(r"\[(\w+)\]", error_msg)
+                diag = diag_match.group(1) if diag_match else "UNKNOWN"
+                error_type = f"vLLM-Error({diag})"
             elif "分析" in error_msg or "analysis" in error_msg.lower():
                 error_type = "Analysis-Error"
 
