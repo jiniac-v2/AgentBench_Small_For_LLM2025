@@ -2,11 +2,19 @@
 """
 提出物横断分析スクリプト
 
-outputs/ 配下の全提出物を読み込み、スコアの傾向・苦手テーマ・相関などを
-分析して eval/analysis_report/ に出力する。
+outputs/ 配下の全提出物の analysis/ ディレクトリを読み込み、
+スコアの傾向・苦手テーマ・相関などを分析して eval/analysis_report/ に出力する。
+
+各提出物の analysis/ 配下には以下のファイルが存在する想定:
+    ├── agent_validation.csv   # Agent別 Validation 分析
+    ├── overall_score.csv      # Overall Score (DB, ALF, 重み, 総合)
+    ├── result.json            # 全分析結果 (summary, overall_scores, details)
+    ├── result.yaml            # 同上 (YAML形式)
+    ├── summary.csv            # Agent×Task のメインメトリック表
+    └── task_validation.csv    # Task別 Validation 分析
 
 Usage:
-    python3 eval/analyze_submissions.py [outputs_dir] [models.csv]
+    python3 eval/analyze_submissions.py [outputs_dir]
 
 出力:
     eval/analysis_report/
@@ -14,7 +22,8 @@ Usage:
         ├── scores_all.csv       # 全モデルの全スコア一覧
         ├── db_by_type.csv       # DBBench タイプ別正答率
         ├── alf_by_category.csv  # ALFWorld カテゴリ別成功率
-        └── correlation.csv      # DB vs ALF 相関データ
+        ├── correlation.csv      # DB vs ALF 相関データ
+        └── validation_all.csv   # 全モデルの Validation 情報一覧
 """
 
 import csv
@@ -28,12 +37,25 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent.parent
 REPORT_DIR = APP_DIR / "eval" / "analysis_report"
 
+# analysis/ 配下の想定ファイル名
+ANALYSIS_FILES = [
+    "agent_validation.csv",
+    "overall_score.csv",
+    "result.json",
+    "result.yaml",
+    "summary.csv",
+    "task_validation.csv",
+]
+
 
 # ── データ読み込み ──
 
 
 def find_submission_dirs(outputs_dir: Path) -> list[dict]:
-    """outputs/ 配下の提出ディレクトリを検出する."""
+    """outputs/ 配下の提出ディレクトリを検出する.
+
+    analysis/ ディレクトリに必要なファイルが揃っているかチェックする。
+    """
     submissions = []
     if not outputs_dir.exists():
         return submissions
@@ -41,180 +63,124 @@ def find_submission_dirs(outputs_dir: Path) -> list[dict]:
     for d in sorted(outputs_dir.iterdir()):
         if not d.is_dir():
             continue
-        # {OmniID}_{OmniAccount}_{TIMESTAMP} or just {TIMESTAMP}
-        parts = d.name.split("_")
         label = d.name
+        analysis_dir = d / "analysis"
 
-        # result.json があれば analysis 済み
-        result_json = d / "analysis" / "result.json"
-        if result_json.exists():
-            submissions.append({"dir": d, "label": label, "result_json": result_json})
+        if not analysis_dir.exists():
             continue
 
-        # result.json がなくても overall.json があればデータはある
-        has_overall = any((d / "vllm-model").glob("*/overall.json"))
-        if has_overall:
-            submissions.append({"dir": d, "label": label, "result_json": None})
+        # 各ファイルの存在チェック
+        files = {}
+        missing = []
+        for fname in ANALYSIS_FILES:
+            fpath = analysis_dir / fname
+            if fpath.exists():
+                files[fname] = fpath
+            else:
+                missing.append(fname)
+
+        # result.json は必須
+        if "result.json" not in files:
+            continue
+
+        submissions.append({
+            "dir": d,
+            "label": label,
+            "analysis_dir": analysis_dir,
+            "files": files,
+            "missing": missing,
+        })
 
     return submissions
 
 
-def load_result_json(path: Path) -> dict:
+def load_json(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def load_overall_json(path: Path) -> dict:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_runs_jsonl(path: Path) -> list[dict]:
-    results = []
+def load_csv_as_dicts(path: Path) -> list[dict]:
+    """CSV を辞書のリストとして読み込む."""
+    rows = []
     if not path.exists():
-        return results
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                results.append(json.loads(line))
-    return results
+        return rows
+    for enc in ["utf-8", "utf-8-sig", "cp932"]:
+        try:
+            with open(path, encoding=enc) as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    rows.append(row)
+            return rows
+        except (UnicodeDecodeError, KeyError):
+            continue
+    return rows
 
 
-def load_dbbench_data(data_file: Path) -> dict:
-    """DBBench の問題データを読み込み、index → type のマッピングを作る."""
-    idx_to_type = {}
-    with open(data_file, encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            d = json.loads(line)
-            t = d.get("type", ["UNKNOWN"])
-            if isinstance(t, list):
-                t = t[0] if t else "UNKNOWN"
-            idx_to_type[i] = t
-    return idx_to_type
+# ── 提出物ごとの分析データ抽出 ──
 
 
-def load_alfworld_data(data_file: Path) -> dict:
-    """ALFWorld の問題データを読み込み、index → category のマッピングを作る."""
-    idx_to_cat = {}
-    with open(data_file, encoding="utf-8") as f:
-        d = json.load(f)
-    idx = 0
-    for cat, items in d.items():
-        for _ in items:
-            idx_to_cat[idx] = cat
-            idx += 1
-    return idx_to_cat
-
-
-# ── 分析関数 ──
-
-
-def analyze_submission(sub: dict, db_idx_type: dict, alf_idx_cat: dict) -> dict | None:
-    """1 提出のデータを分析する."""
+def extract_submission_data(sub: dict) -> dict | None:
+    """1 提出の analysis/ ファイル群からデータを抽出する."""
     info = {"label": sub["label"], "dir": str(sub["dir"])}
+    files = sub["files"]
 
-    # --- result.json からスコア取得 ---
-    if sub["result_json"]:
-        result = load_result_json(sub["result_json"])
-        scores = result.get("overall_scores", {})
-        for agent, s in scores.items():
-            info["overall_score"] = s.get("overall_score", 0)
-            info["db_score"] = s.get("db_bench_score", 0)
-            info["alf_score"] = s.get("alf_score", 0)
-            break
-        else:
-            return None
+    # --- result.json からスコア・詳細取得 ---
+    result = load_json(files["result.json"])
 
-        # details から validation 情報 + DB 詳細精度を取得
-        details = result.get("details", {})
-        for agent, tasks in details.items():
-            for task_name, task_data in tasks.items():
-                overall = task_data.get("overall", {})
-                if "validation" in overall:
-                    vkey = f"{task_name}_validation"
-                    info[vkey] = overall["validation"]
-                # DBBench の詳細精度 (overall.json の custom 部分)
-                custom = overall.get("custom", {})
-                if custom and task_name.startswith("db"):
-                    info["db_detailed"] = {
-                        k: v for k, v in custom.items()
-                        if isinstance(v, (int, float)) and "accuracy" in k
-                    }
+    # overall_scores からスコア取得
+    overall_scores = result.get("overall_scores", {})
+    for agent, scores in overall_scores.items():
+        info["agent_name"] = agent
+        info["overall_score"] = scores.get("overall_score", 0)
+        info["db_score"] = scores.get("db_bench_score", 0)
+        info["alf_score"] = scores.get("alf_score", 0)
+        info["w_db"] = scores.get("w_db", 0)
+        info["w_alf"] = scores.get("w_alf", 0)
+        break
     else:
-        return None  # analysis 未実施
+        return None
 
-    # --- runs.jsonl からタスク別詳細取得 ---
-    agent_dir = sub["dir"] / "vllm-model"
-    if not agent_dir.exists():
-        # agent name が違う場合を探す
-        for candidate in sub["dir"].iterdir():
-            if candidate.is_dir() and candidate.name != "analysis":
-                agent_dir = candidate
-                break
+    # details から DB の詳細精度 (custom 部分) を取得
+    details = result.get("details", {})
+    for agent, tasks in details.items():
+        for task_name, task_data in tasks.items():
+            overall = task_data.get("overall", {})
+            custom = overall.get("custom", {})
+            if custom and task_name.lower().startswith("db"):
+                info["db_detailed"] = {
+                    k: v for k, v in custom.items()
+                    if isinstance(v, (int, float)) and "accuracy" in k
+                }
+            elif custom and task_name.lower().startswith("alf"):
+                # ALFWorld のカテゴリ別成功率
+                alf_overall = custom.get("overall", {})
+                if alf_overall:
+                    info["alf_detailed"] = alf_overall
 
-    # DBBench 詳細
-    db_runs_path = agent_dir / "dbbench-std" / "runs.jsonl"
-    db_errors_path = agent_dir / "dbbench-std" / "error.jsonl"
-    db_runs = load_runs_jsonl(db_runs_path)
-    db_errors = load_runs_jsonl(db_errors_path)
+    # --- overall_score.csv から追加情報 (result.json と重複するが検証用) ---
+    if "overall_score.csv" in files:
+        oa_rows = load_csv_as_dicts(files["overall_score.csv"])
+        if oa_rows:
+            info["overall_score_csv"] = oa_rows
 
-    db_by_type = defaultdict(lambda: {"total": 0, "correct": 0})
-    for run in db_runs:
-        idx = run.get("index", -1)
-        qtype = db_idx_type.get(idx, "UNKNOWN")
-        db_by_type[qtype]["total"] += 1
-        # 正解判定: output.status == "completed" かつ result.result == 1 (or similar)
-        output = run.get("output", {})
-        result_data = output.get("result", {}) if output else {}
-        if isinstance(result_data, dict) and result_data.get("result") == 1:
-            db_by_type[qtype]["correct"] += 1
-    for err in db_errors:
-        idx = err.get("index", -1)
-        qtype = db_idx_type.get(idx, "UNKNOWN")
-        db_by_type[qtype]["total"] += 1
+    # --- summary.csv からタスク別メトリック取得 ---
+    if "summary.csv" in files:
+        summary_rows = load_csv_as_dicts(files["summary.csv"])
+        info["summary_csv"] = summary_rows
 
-    info["db_by_type"] = dict(db_by_type)
+    # --- agent_validation.csv から Agent 別 Validation 取得 ---
+    if "agent_validation.csv" in files:
+        av_rows = load_csv_as_dicts(files["agent_validation.csv"])
+        info["agent_validation"] = av_rows
 
-    # DBBench overall.json からのフォールバック (result.json に詳細がない場合)
-    if "db_detailed" not in info:
-        db_overall_path = agent_dir / "dbbench-std" / "overall.json"
-        if db_overall_path.exists():
-            db_overall = load_overall_json(db_overall_path)
-            custom = db_overall.get("custom", db_overall)
-            info["db_detailed"] = {
-                k: v for k, v in custom.items()
-                if isinstance(v, (int, float)) and "accuracy" in k
-            }
+    # --- task_validation.csv から Task 別 Validation 取得 ---
+    if "task_validation.csv" in files:
+        tv_rows = load_csv_as_dicts(files["task_validation.csv"])
+        info["task_validation"] = tv_rows
 
-    # ALFWorld 詳細
-    alf_runs_path = agent_dir / "alfworld-std" / "runs.jsonl"
-    alf_errors_path = agent_dir / "alfworld-std" / "error.jsonl"
-    alf_runs = load_runs_jsonl(alf_runs_path)
-    alf_errors = load_runs_jsonl(alf_errors_path)
-
-    alf_by_cat = defaultdict(lambda: {"total": 0, "pass": 0})
-    for run in alf_runs:
-        idx = run.get("index", -1)
-        cat = alf_idx_cat.get(idx, "UNKNOWN")
-        alf_by_cat[cat]["total"] += 1
-        output = run.get("output", {})
-        result_data = output.get("result", {}) if output else {}
-        if isinstance(result_data, dict) and result_data.get("result") == 1:
-            alf_by_cat[cat]["pass"] += 1
-    for err in alf_errors:
-        idx = err.get("index", -1)
-        cat = alf_idx_cat.get(idx, "UNKNOWN")
-        alf_by_cat[cat]["total"] += 1
-
-    info["alf_by_cat"] = dict(alf_by_cat)
-
-    # Validation 集計 (完了数, コンテキスト超え, etc.)
-    info["validation_summary"] = {}
-    for task_name in ["dbbench-std", "alfworld-std"]:
-        vkey = f"{task_name}_validation"
-        if vkey in info:
-            info["validation_summary"][task_name] = info[vkey]
+    # missing ファイルの警告情報
+    if sub["missing"]:
+        info["missing_files"] = sub["missing"]
 
     return info
 
@@ -248,6 +214,22 @@ def pearson_r(xs: list[float], ys: list[float]) -> float:
     return cov / (sx * sy)
 
 
+def parse_validation_row(row: dict) -> dict[str, float]:
+    """Validation CSV の1行から、数値カラムを抽出する."""
+    result = {}
+    for k, v in row.items():
+        if k.endswith("\\Validation") or k.endswith("\\Task"):
+            continue
+        # 最初のカラム (Agent名/Task名) をスキップ
+        if v == "--" or v == "":
+            continue
+        try:
+            result[k] = float(v)
+        except (ValueError, TypeError):
+            pass
+    return result
+
+
 def generate_report(submissions_data: list[dict]) -> str:
     """分析レポートを生成する."""
     lines = []
@@ -257,7 +239,7 @@ def generate_report(submissions_data: list[dict]) -> str:
     lines.append("=" * 70)
     lines.append("")
 
-    # ── 1. スコア概要 ──
+    # ── 1. スコア概要 (overall_score.csv ベース) ──
     overall_scores = [s["overall_score"] for s in submissions_data]
     db_scores = [s["db_score"] for s in submissions_data]
     alf_scores = [s["alf_score"] for s in submissions_data]
@@ -266,7 +248,7 @@ def generate_report(submissions_data: list[dict]) -> str:
     stats_db = compute_statistics(db_scores)
     stats_alf = compute_statistics(alf_scores)
 
-    lines.append("1. スコア概要")
+    lines.append("1. スコア概要 (overall_score.csv / result.json ベース)")
     lines.append("-" * 50)
     lines.append(f"  {'':20s} {'平均':>8s} {'標準偏差':>8s} {'中央値':>8s} {'最小':>8s} {'最大':>8s}")
     for name, st in [("Overall Score", stats_oa), ("DB_Bench", stats_db), ("ALFWorld", stats_alf)]:
@@ -311,11 +293,10 @@ def generate_report(submissions_data: list[dict]) -> str:
             lines.append("  → 弱い相関: DB と ALF は比較的独立したスキル")
     lines.append("")
 
-    # ── 4. DBBench タイプ別分析 ──
-    lines.append("4. DBBench タイプ別正答率 (overall.json ベース)")
+    # ── 4. DBBench タイプ別分析 (result.json の custom ベース) ──
+    lines.append("4. DBBench タイプ別正答率 (result.json custom ベース)")
     lines.append("-" * 50)
 
-    # overall.json の詳細精度を集計
     db_type_scores = defaultdict(list)
     for s in submissions_data:
         if "db_detailed" in s:
@@ -328,7 +309,6 @@ def generate_report(submissions_data: list[dict]) -> str:
             st = compute_statistics(vals)
             lines.append(f"  {k:30s} 平均={st['mean']:.4f} 標準偏差={st['std']:.4f} 中央値={st['median']:.4f}")
 
-        # 苦手タイプ (平均が低い順)
         lines.append("")
         lines.append("  [苦手タイプ (平均正答率が低い順)]")
         type_means = [(k, compute_statistics(v)["mean"]) for k, v in db_type_scores.items()]
@@ -337,36 +317,78 @@ def generate_report(submissions_data: list[dict]) -> str:
             lines.append(f"    {k:30s} {m:.4f}")
     lines.append("")
 
-    # ── 5. ALFWorld カテゴリ別分析 ──
-    lines.append("5. ALFWorld カテゴリ別成功率")
+    # ── 5. summary.csv ベースのタスク別メトリック一覧 ──
+    lines.append("5. タスク別メトリック (summary.csv ベース)")
     lines.append("-" * 50)
 
-    alf_cat_rates = defaultdict(list)
+    task_metrics = defaultdict(list)
     for s in submissions_data:
-        alf_cats = s.get("alf_by_cat", {})
-        for cat, data in alf_cats.items():
-            if data["total"] > 0:
-                alf_cat_rates[cat].append(data["pass"] / data["total"])
+        for row in s.get("summary_csv", []):
+            for k, v in row.items():
+                if k.endswith("\\Task") or k == "":
+                    continue
+                # 最初のカラム (Agent名) をスキップ
+                first_key = list(row.keys())[0]
+                if k == first_key:
+                    continue
+                try:
+                    task_metrics[k].append(float(v))
+                except (ValueError, TypeError):
+                    pass
 
-    if alf_cat_rates:
-        for cat in sorted(alf_cat_rates.keys()):
-            vals = alf_cat_rates[cat]
+    if task_metrics:
+        for task_name in sorted(task_metrics.keys()):
+            vals = task_metrics[task_name]
             st = compute_statistics(vals)
             lines.append(
-                f"  {cat:30s} 平均={st['mean']:.4f} 標準偏差={st['std']:.4f} "
+                f"  {task_name:30s} 平均={st['mean']:.4f} 標準偏差={st['std']:.4f} "
                 f"中央値={st['median']:.4f} (n={st['n']})"
             )
-
-        lines.append("")
-        lines.append("  [苦手カテゴリ (平均成功率が低い順)]")
-        cat_means = [(c, compute_statistics(v)["mean"]) for c, v in alf_cat_rates.items()]
-        cat_means.sort(key=lambda x: x[1])
-        for c, m in cat_means:
-            lines.append(f"    {c:30s} {m:.4f}")
     lines.append("")
 
-    # ── 6. 上位 vs 下位の特徴比較 ──
-    lines.append("6. 上位 vs 下位の特徴比較")
+    # ── 6. Validation 分析 (agent_validation.csv / task_validation.csv ベース) ──
+    lines.append("6. Validation 分析 (agent_validation.csv ベース)")
+    lines.append("-" * 50)
+
+    # Agent Validation 集計
+    agent_val_totals = defaultdict(list)
+    for s in submissions_data:
+        for row in s.get("agent_validation", []):
+            parsed = parse_validation_row(row)
+            for vk, vv in parsed.items():
+                agent_val_totals[vk].append(vv)
+
+    if agent_val_totals:
+        for vk in sorted(agent_val_totals.keys()):
+            vals = agent_val_totals[vk]
+            st = compute_statistics(vals)
+            lines.append(f"  {vk:30s} 平均={st['mean']:.1f} 標準偏差={st['std']:.1f} 最大={st['max']:.0f}")
+    lines.append("")
+
+    lines.append("  Task Validation (task_validation.csv ベース)")
+    lines.append("  " + "-" * 48)
+
+    task_val_totals = defaultdict(lambda: defaultdict(list))
+    for s in submissions_data:
+        for row in s.get("task_validation", []):
+            first_key = list(row.keys())[0]
+            task_name = row[first_key]
+            parsed = parse_validation_row(row)
+            for vk, vv in parsed.items():
+                task_val_totals[task_name][vk].append(vv)
+
+    if task_val_totals:
+        for task_name in sorted(task_val_totals.keys()):
+            lines.append(f"  [{task_name}]")
+            for vk in sorted(task_val_totals[task_name].keys()):
+                vals = task_val_totals[task_name][vk]
+                st = compute_statistics(vals)
+                lines.append(f"    {vk:30s} 平均={st['mean']:.1f} 最大={st['max']:.0f}")
+            lines.append("")
+    lines.append("")
+
+    # ── 7. 上位 vs 下位の特徴比較 ──
+    lines.append("7. 上位 vs 下位の特徴比較")
     lines.append("-" * 50)
 
     n = len(ranked)
@@ -381,9 +403,6 @@ def generate_report(submissions_data: list[dict]) -> str:
         # DB タイプ別比較
         if db_type_scores:
             lines.append("  [DBBench タイプ別: 上位 vs 下位]")
-            top_labels = {s["label"] for s in top_group}
-            bottom_labels = {s["label"] for s in bottom_group}
-
             for k in sorted(db_type_scores.keys()):
                 top_vals = [s["db_detailed"][k] for s in top_group if "db_detailed" in s and k in s["db_detailed"]]
                 bot_vals = [s["db_detailed"][k] for s in bottom_group if "db_detailed" in s and k in s["db_detailed"]]
@@ -394,50 +413,8 @@ def generate_report(submissions_data: list[dict]) -> str:
                     lines.append(
                         f"    {k:30s} 上位={top_mean:.4f} 下位={bot_mean:.4f} 差={diff:+.4f}"
                     )
-
         lines.append("")
-
-        # ALF カテゴリ別比較
-        if alf_cat_rates:
-            lines.append("  [ALFWorld カテゴリ別: 上位 vs 下位]")
-            for cat in sorted(alf_cat_rates.keys()):
-                top_vals = []
-                bot_vals = []
-                for s in top_group:
-                    cd = s.get("alf_by_cat", {}).get(cat, {})
-                    if cd.get("total", 0) > 0:
-                        top_vals.append(cd["pass"] / cd["total"])
-                for s in bottom_group:
-                    cd = s.get("alf_by_cat", {}).get(cat, {})
-                    if cd.get("total", 0) > 0:
-                        bot_vals.append(cd["pass"] / cd["total"])
-                if top_vals and bot_vals:
-                    top_mean = sum(top_vals) / len(top_vals)
-                    bot_mean = sum(bot_vals) / len(bot_vals)
-                    diff = top_mean - bot_mean
-                    lines.append(
-                        f"    {cat:30s} 上位={top_mean:.4f} 下位={bot_mean:.4f} 差={diff:+.4f}"
-                    )
     lines.append("")
-
-    # ── 7. Validation 分析 ──
-    lines.append("7. Validation 分析 (エラー傾向)")
-    lines.append("-" * 50)
-
-    for task_name in ["dbbench-std", "alfworld-std"]:
-        val_totals = defaultdict(list)
-        for s in submissions_data:
-            vdata = s.get("validation_summary", {}).get(task_name, {})
-            for vk, vv in vdata.items():
-                val_totals[vk].append(vv)
-
-        if val_totals:
-            lines.append(f"  [{task_name}]")
-            for vk in sorted(val_totals.keys()):
-                vals = val_totals[vk]
-                st = compute_statistics(vals)
-                lines.append(f"    {vk:30s} 平均={st['mean']:.1f} 最大={st['max']:.0f}")
-            lines.append("")
 
     # ── 8. スコア分布 ──
     lines.append("8. スコア分布 (ヒストグラム)")
@@ -445,13 +422,10 @@ def generate_report(submissions_data: list[dict]) -> str:
 
     for name, scores in [("Overall", overall_scores), ("DB_Bench", db_scores), ("ALFWorld", alf_scores)]:
         lines.append(f"  [{name}]")
-        # 10分割のヒストグラム
-        bins = [0] * 10
-        for v in scores:
-            b = min(int(v * 10), 9)  # 0.0-1.0 の場合
-            if name == "Overall":
-                b = min(int(v / 1.0), 9)  # overall_score のレンジに応じて調整
-            bins[b] += 1
+        if not scores:
+            lines.append("    (データなし)")
+            lines.append("")
+            continue
 
         if name == "Overall":
             max_val = max(scores) if scores else 10
@@ -466,11 +440,24 @@ def generate_report(submissions_data: list[dict]) -> str:
                 bar = "#" * cnt
                 lines.append(f"    {lo:6.2f}-{hi:6.2f}: {bar} ({cnt})")
         else:
+            bins = [0] * 10
+            for v in scores:
+                b = min(int(v * 10), 9)
+                bins[b] += 1
             for i, cnt in enumerate(bins):
                 lo = i * 0.1
                 hi = (i + 1) * 0.1
                 bar = "#" * cnt
                 lines.append(f"    {lo:.1f}-{hi:.1f}: {bar} ({cnt})")
+        lines.append("")
+
+    # ── 9. 欠損ファイル警告 ──
+    missing_subs = [s for s in submissions_data if s.get("missing_files")]
+    if missing_subs:
+        lines.append("9. 欠損ファイル警告")
+        lines.append("-" * 50)
+        for s in missing_subs:
+            lines.append(f"  {s['label']}: {', '.join(s['missing_files'])}")
         lines.append("")
 
     lines.append("=" * 70)
@@ -488,7 +475,7 @@ def save_csvs(submissions_data: list[dict], report_dir: Path):
         for s in sorted(submissions_data, key=lambda x: x["overall_score"], reverse=True):
             writer.writerow([s["label"], s["overall_score"], s["db_score"], s["alf_score"]])
 
-    # db_by_type.csv - overall.json の詳細精度
+    # db_by_type.csv - result.json の custom 詳細精度
     db_type_keys = set()
     for s in submissions_data:
         if "db_detailed" in s:
@@ -505,24 +492,22 @@ def save_csvs(submissions_data: list[dict], report_dir: Path):
                     row.append(s.get("db_detailed", {}).get(k, ""))
                 writer.writerow(row)
 
-    # alf_by_category.csv
+    # alf_by_category.csv - result.json の ALFWorld 詳細
     alf_cats = set()
     for s in submissions_data:
-        alf_cats.update(s.get("alf_by_cat", {}).keys())
+        if "alf_detailed" in s:
+            alf_cats.update(s["alf_detailed"].keys())
     alf_cats = sorted(alf_cats)
 
     if alf_cats:
         with open(report_dir / "alf_by_category.csv", "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["label", "overall_score"] + [f"{c}_rate" for c in alf_cats])
+            writer.writerow(["label", "overall_score"] + [f"{c}" for c in alf_cats])
             for s in sorted(submissions_data, key=lambda x: x["overall_score"], reverse=True):
                 row = [s["label"], s["overall_score"]]
                 for c in alf_cats:
-                    cd = s.get("alf_by_cat", {}).get(c, {})
-                    if cd.get("total", 0) > 0:
-                        row.append(f"{cd['pass'] / cd['total']:.4f}")
-                    else:
-                        row.append("")
+                    val = s.get("alf_detailed", {}).get(c, "")
+                    row.append(val)
                 writer.writerow(row)
 
     # correlation.csv
@@ -532,49 +517,37 @@ def save_csvs(submissions_data: list[dict], report_dir: Path):
         for s in sorted(submissions_data, key=lambda x: x["overall_score"], reverse=True):
             writer.writerow([s["label"], s["db_score"], s["alf_score"], s["overall_score"]])
 
+    # validation_all.csv - 全モデルの Validation 情報
+    all_val_keys = set()
+    for s in submissions_data:
+        for row in s.get("agent_validation", []):
+            parsed = parse_validation_row(row)
+            all_val_keys.update(parsed.keys())
+    all_val_keys = sorted(all_val_keys)
+
+    if all_val_keys:
+        with open(report_dir / "validation_all.csv", "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["label"] + all_val_keys)
+            for s in sorted(submissions_data, key=lambda x: x["overall_score"], reverse=True):
+                row = [s["label"]]
+                # agent_validation から最初の行を使う (通常 agent は 1 つ)
+                vals = {}
+                for av_row in s.get("agent_validation", []):
+                    vals = parse_validation_row(av_row)
+                    break
+                for k in all_val_keys:
+                    row.append(vals.get(k, ""))
+                writer.writerow(row)
+
 
 # ── メイン ──
 
 
-def load_csv_info(csv_path: Path) -> dict:
-    """models.csv から label → モデル情報のマッピングを作る."""
-    info = {}
-    if not csv_path.exists():
-        return info
-    # encoding detection
-    for enc in ["utf-8", "utf-8-sig", "cp932", "shift_jis"]:
-        try:
-            with open(csv_path, encoding=enc) as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    omni_id = row.get("OmniID", "")
-                    account = row.get("OmniAccount", "")
-                    if omni_id and account:
-                        prefix = f"{omni_id}_{account}_"
-                        info[prefix] = row
-            return info
-        except (UnicodeDecodeError, KeyError):
-            continue
-    return info
-
-
 def main():
     outputs_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else APP_DIR / "outputs"
-    csv_path = Path(sys.argv[2]) if len(sys.argv) > 2 else APP_DIR / "eval" / "models.csv"
 
     print(f"outputs: {outputs_dir}")
-    print(f"csv: {csv_path}")
-    print()
-
-    # 問題データの index → type/category マッピング
-    db_data_path = APP_DIR / "data" / "dbbench" / "standard.jsonl"
-    alf_data_path = APP_DIR / "data" / "alfworld" / "standard.json"
-
-    db_idx_type = load_dbbench_data(db_data_path) if db_data_path.exists() else {}
-    alf_idx_cat = load_alfworld_data(alf_data_path) if alf_data_path.exists() else {}
-
-    print(f"DBBench 問題数: {len(db_idx_type)}")
-    print(f"ALFWorld 問題数: {len(alf_idx_cat)}")
     print()
 
     # 提出ディレクトリ検出
@@ -582,18 +555,24 @@ def main():
     print(f"検出した提出ディレクトリ: {len(submissions)}")
 
     if not submissions:
-        print("ERROR: outputs/ に提出データが見つかりません。")
-        print("評価実行後に再度実行してください。")
+        print("ERROR: outputs/ に analysis/ 付きの提出データが見つかりません。")
+        print("採点 (src/analysis.py) 実行後に再度実行してください。")
         sys.exit(1)
+
+    # 各提出の analysis ファイル状況を表示
+    for sub in submissions:
+        status = "OK" if not sub["missing"] else f"WARN: missing {', '.join(sub['missing'])}"
+        print(f"  {sub['label']}: {status}")
+    print()
 
     # 各提出を分析
     results = []
     for sub in submissions:
-        data = analyze_submission(sub, db_idx_type, alf_idx_cat)
+        data = extract_submission_data(sub)
         if data:
             results.append(data)
         else:
-            print(f"  SKIP: {sub['label']} (analysis 未実施)")
+            print(f"  SKIP: {sub['label']} (result.json にスコア情報なし)")
 
     print(f"分析対象: {len(results)} モデル")
     print()
@@ -621,6 +600,7 @@ def main():
     print(f"  db_by_type.csv       - DBBench タイプ別精度")
     print(f"  alf_by_category.csv  - ALFWorld カテゴリ別成功率")
     print(f"  correlation.csv      - DB vs ALF 相関データ")
+    print(f"  validation_all.csv   - 全モデル Validation 情報")
 
 
 if __name__ == "__main__":
