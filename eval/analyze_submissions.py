@@ -126,7 +126,7 @@ def analyze_submission(sub: dict, db_idx_type: dict, alf_idx_cat: dict) -> dict 
         else:
             return None
 
-        # details から validation 情報取得
+        # details から validation 情報 + DB 詳細精度を取得
         details = result.get("details", {})
         for agent, tasks in details.items():
             for task_name, task_data in tasks.items():
@@ -134,6 +134,13 @@ def analyze_submission(sub: dict, db_idx_type: dict, alf_idx_cat: dict) -> dict 
                 if "validation" in overall:
                     vkey = f"{task_name}_validation"
                     info[vkey] = overall["validation"]
+                # DBBench の詳細精度 (overall.json の custom 部分)
+                custom = overall.get("custom", {})
+                if custom and task_name.startswith("db"):
+                    info["db_detailed"] = {
+                        k: v for k, v in custom.items()
+                        if isinstance(v, (int, float)) and "accuracy" in k
+                    }
     else:
         return None  # analysis 未実施
 
@@ -169,15 +176,16 @@ def analyze_submission(sub: dict, db_idx_type: dict, alf_idx_cat: dict) -> dict 
 
     info["db_by_type"] = dict(db_by_type)
 
-    # DBBench overall.json の詳細精度
-    db_overall_path = agent_dir / "dbbench-std" / "overall.json"
-    if db_overall_path.exists():
-        db_overall = load_overall_json(db_overall_path)
-        custom = db_overall.get("custom", db_overall)
-        info["db_detailed"] = {
-            k: v for k, v in custom.items()
-            if isinstance(v, (int, float)) and "accuracy" in k
-        }
+    # DBBench overall.json からのフォールバック (result.json に詳細がない場合)
+    if "db_detailed" not in info:
+        db_overall_path = agent_dir / "dbbench-std" / "overall.json"
+        if db_overall_path.exists():
+            db_overall = load_overall_json(db_overall_path)
+            custom = db_overall.get("custom", db_overall)
+            info["db_detailed"] = {
+                k: v for k, v in custom.items()
+                if isinstance(v, (int, float)) and "accuracy" in k
+            }
 
     # ALFWorld 詳細
     alf_runs_path = agent_dir / "alfworld-std" / "runs.jsonl"
